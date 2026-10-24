@@ -23,13 +23,6 @@ patches:
         path: /spec/template/spec/containers/0/args/-
         value: --no-cross-namespace-refs=true
   - target:
-      kind: Deployment
-      name: source-controller
-    patch: |
-      - op: add
-        path: /spec/template/spec/containers/0/args/-
-        value: --no-cross-namespace-refs=true
-  - target:
       kind: Namespace
       name: flux-system
     patch: |

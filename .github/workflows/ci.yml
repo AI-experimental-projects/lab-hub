@@ -63,12 +63,15 @@ jobs:
 
   # Points web.yaml at the image just published. Flux (inside the cluster) picks
   # up the commit and rolls it out; GitHub never talks to the cluster.
-  # Pushes made with GITHUB_TOKEN don't trigger new workflow runs, so this can't loop.
+  # It pushes with an SSH deploy key (the only ruleset bypass on main besides org
+  # admins), stored in the "production" environment, which only main can use.
+  # The commit message carries [skip ci] so the push doesn't start another run.
   deploy:
     needs: image
     runs-on: ubuntu-24.04
+    environment: production
     permissions:
-      contents: write
+      contents: read
     concurrency:
       group: deploy-main
       cancel-in-progress: false
@@ -77,6 +80,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 20
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
       - name: Bump image tag
         env:
           SHA: ${{ github.sha }}
@@ -95,7 +99,7 @@ jobs:
             fi
             sed -i -E "s#(ghcr.io/ai-experimental-projects/lab-hub):sha-[0-9a-f]+#\1:${tag}#" infra/k8s/lab-hub/web.yaml
             if git diff --quiet; then echo "already at $tag"; exit 0; fi
-            git commit -qam "deploy: web ${tag}"
+            git commit -qam "deploy: web ${tag} [skip ci]"
             git push -q origin HEAD:main && { echo "deployed $tag"; exit 0; }
             sleep $((attempt * 5))
           done

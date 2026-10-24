@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { SITE_URL } from "./site.ts";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
@@ -27,7 +28,7 @@ export function ogCard({ eyebrow, title, subtitle }: { eyebrow: string; title: s
           <div style={{ fontSize: 72, color: "#e1e4e9", lineHeight: 1.1 }}>{title}</div>
           <div style={{ fontSize: 34, color: "#858c97", lineHeight: 1.35 }}>{subtitle}</div>
         </div>
-        <div style={{ display: "flex", fontSize: 26, color: "#858c97" }}>lab.beaiapp.com</div>
+        <div style={{ display: "flex", fontSize: 26, color: "#858c97" }}>{new URL(SITE_URL).host}</div>
       </div>
     ),
     OG_SIZE,

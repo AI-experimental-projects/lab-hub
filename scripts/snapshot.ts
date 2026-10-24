@@ -7,8 +7,9 @@
 // isn't healthy, so a good snapshot is never replaced by error pages.
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { SITE_URL } from "../src/lib/site.ts";
 
-const SITE = process.env.SNAPSHOT_SITE ?? "https://lab.beaiapp.com";
+const SITE = process.env.SNAPSHOT_SITE ?? SITE_URL;
 const OUT = process.argv[2] ?? "infra/edge/snapshot";
 const MAX_FILES = 400;
 const MAX_BYTES = 40 * 1024 * 1024;

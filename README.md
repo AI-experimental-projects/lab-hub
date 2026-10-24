@@ -1,75 +1,75 @@
 # Lab Hub
 
-Portafolio vivo: un sitio en Next.js que muestra cada proyecto del lab funcionando en producción, con estado, uptime, versión y costo leídos en vivo.
+**A live portfolio for engineers: every project shown running in production, not in screenshots.**
 
-> Estado: v0 en construcción (Fase 0). El primer proyecto en vivo es el propio Hub; cada proyecto nuevo del roadmap se conecta con su `lab.yaml`.
+[Live site](https://lab.beaiapp.com) · [Español](README.es.md) · [Security model](docs/security.md)
 
-## Cómo funciona
+![Lab Hub: project cards with live status, a project page with its check history, and the English/Spanish switch](docs/demo.gif)
 
-El Hub **jala** datos de los proyectos; los proyectos nunca le envían nada. Conectar un proyecto nuevo es solo agregar su `lab.yaml`.
+Each project publishes a small `lab.yaml` and a `/status` endpoint. The Hub pulls them every 5 minutes and shows live status, version, uptime it measures itself, cost and project metrics. It runs on a single-node k3s homelab behind Cloudflare Tunnel, deploys itself with GitOps, and keeps serving a snapshot when the homelab is down.
 
-Cada proyecto publica un `lab.yaml`:
-
-```yaml
-name: EvalGate
-slug: evalgate
-phase: 1
-summary: Evals como gate de despliegue para agentes y políticas de robot
-repo: github.com/AI-experimental-projects/evalgate
-demo: https://evalgate.example.com
-status_url: https://evalgate.example.com/status
-metrics: [runs_24h, gate_blocks_7d, p95_latency_ms]
-```
-
-Y expone `GET /status`:
-
-```json
-{
-  "ok": true,
-  "version": "0.3.1",
-  "uptime_30d": 0.997,
-  "metrics": { "runs_24h": 42, "gate_blocks_7d": 3, "p95_latency_ms": 840 },
-  "cost_month_usd": 4.2
-}
-```
-
-Ambos formatos se validan con zod en [src/lib/contract.ts](src/lib/contract.ts). Un campo fuera del contrato hace fallar el build (`pnpm validate`).
-
-## Collector
-
-Corre dentro del servidor de Next.js (`src/instrumentation.ts`): cada 5 minutos pide el `status_url` de cada proyecto, valida la respuesta contra el contrato y la guarda en SQLite (`node:sqlite`). El uptime de 30 días lo mide el Hub; no es el que reporta cada proyecto. El Hub también se revisa a sí mismo a través de su URL pública.
-
-Las URLs vienen de archivos que cualquiera podría proponer en un PR, así que el collector está protegido contra SSRF en tres capas:
-
-1. **Contrato:** solo `https` a dominios públicos; sin IPs, nombres internos, credenciales ni puertos.
-2. **Petición** ([src/lib/safe-fetch.ts](src/lib/safe-fetch.ts)): resuelve el DNS, rechaza si alguna IP es privada o reservada y fija el socket a la IP revisada (contra DNS rebinding). Sin redirecciones, con timeout de 5 s y respuestas de máximo 64 KB.
-3. **Red** (NetworkPolicy): el pod solo puede salir a DNS y a HTTPS en internet público.
-
-## Páginas e idiomas
-
-Inglés por defecto en la raíz; español bajo `/es` (selector en el encabezado). `src/proxy.ts` sirve las URLs sin prefijo desde `/en/…`, redirige `/en/…` a la URL limpia y las rutas antiguas en español (`/proyectos`, `/bitacora`) a `/es/…`.
-
-- `/` · `/es`: una tarjeta por proyecto.
-- `/projects/<slug>`: métricas, historial de revisiones y, si existe, `content/projects/<slug>.mdx` (inglés) o `<slug>.es.mdx` (español).
-- `/journal`: entradas en `content/journal/<slug>.mdx` y/o `<slug>.es.mdx`, con `export const metadata = { title, date, summary, kind, project?, draft? }`. Si falta un idioma se muestra el otro, marcado. Los borradores solo se ven con `pnpm dev`.
-- `/status`: el `/status` del propio Hub.
-
-Textos de la interfaz: `src/i18n/dictionaries.ts` (el inglés es la fuente; TypeScript exige las mismas claves en español). En `lab.yaml`, `summary_es` es opcional.
-
-## Desarrollo
+## Quickstart (5 minutes)
 
 ```bash
+git clone https://github.com/AI-experimental-projects/lab-hub && cd lab-hub
 pnpm install
-pnpm dev        # http://localhost:3000
-pnpm validate   # revisa content/projects/*.yaml
-pnpm test
+pnpm dev          # http://localhost:3000 — the collector starts checking after 15 s
+```
+
+Add a project by dropping a file in `content/projects/`:
+
+```yaml
+# content/projects/my-api.yaml
+name: My API
+slug: my-api
+phase: 1
+summary: What it does, in one line
+summary_es: Qué hace, en una línea   # optional
+repo: github.com/you/my-api
+demo: https://my-api.example.com
+status_url: https://my-api.example.com/status
+metrics: [requests_24h, p95_latency_ms]
+```
+
+Then make `GET /status` return:
+
+```json
+{ "ok": true, "version": "1.4.0", "uptime_30d": 0.998, "metrics": { "requests_24h": 1280, "p95_latency_ms": 640 }, "cost_month_usd": 3.1 }
+```
+
+`pnpm validate` checks every `lab.yaml` against the contract ([src/lib/contract.ts](src/lib/contract.ts)); unknown fields fail the build so a project can't leak data through it.
+
+## Use it as a template
+
+Click **Use this template**, then point it at your domain and repo:
+
+```bash
+node scripts/init.ts --domain lab.example.com --repo you/lab-hub    # --dry-run to preview
+```
+
+It rewrites the site URL, the Hub's own `lab.yaml`, the Flux source, the image name and the edge Worker route. Then replace `content/journal/` with your own entries and follow [infra/README.md](infra/README.md) (in Spanish for now) to deploy.
+
+## What's inside
+
+| | |
+|---|---|
+| **Site** | Next.js 16 (App Router, Cache Components), Tailwind, English by default with Spanish under `/es` |
+| **Collector** | Runs in-process every 5 min; results in SQLite (`node:sqlite`). SSRF-safe: contract allows only public `https` domains, DNS is checked and the socket pinned to the checked IP, and a NetworkPolicy only allows public 443 |
+| **Pages** | Project cards, a page per project with its check history and an optional MDX write-up, an MDX journal with drafts |
+| **Hosting** | k3s on a homelab, exposed only through Cloudflare Tunnel (no open ports); default-deny NetworkPolicies and Pod Security `restricted` |
+| **Deploys** | CI validates, tests and builds an image per commit; a bot commits the new tag and Flux rolls it out. GitHub never connects to the cluster |
+| **Resilience** | A Cloudflare Worker serves the last snapshot (with a notice) when the homelab is unreachable; `/status` returns 503 so monitors still see the outage |
+| **Share** | Generated Open Graph images per page and language, canonical URLs, hreflang, bilingual sitemap |
+
+## Development
+
+```bash
+pnpm validate     # lab.yaml contract
+pnpm test         # contract, SSRF filter, collector, edge fallback, template init
+pnpm lint
 pnpm build
 ```
 
-## Infra
-
-Corre en k3s en un homelab, expuesto con Cloudflare Tunnel. Ver [infra/README.md](infra/README.md).
-
-## Licencia
+## License
 
 [MIT](LICENSE)

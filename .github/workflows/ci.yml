@@ -48,7 +48,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/ai-experimental-projects/lab-hub
+          images: ghcr.io/${{ github.repository }}
           tags: |
             type=sha,prefix=sha-,format=short
             type=raw,value=main
@@ -98,7 +98,7 @@ jobs:
             if [ "$latest" != "$SHA" ]; then
               echo "main moved past $SHA; skipping"; exit 0
             fi
-            sed -i -E "s#(ghcr.io/ai-experimental-projects/lab-hub):sha-[0-9a-f]+#\1:${tag}#" infra/k8s/lab-hub/web.yaml
+            sed -i -E "s#(image: ghcr\.io/[^: ]+):sha-[0-9a-f]+#\1:${tag}#" infra/k8s/lab-hub/web.yaml
             if git diff --quiet; then echo "already at $tag"; exit 0; fi
             git commit -qam "deploy: web ${tag} [skip ci]"
             git push -q origin HEAD:main && { echo "deployed $tag"; exit 0; }

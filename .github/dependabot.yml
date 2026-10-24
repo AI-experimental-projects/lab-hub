@@ -1,0 +1,25 @@
+# Weekly dependency PRs. Minor/patch bumps are grouped per ecosystem so the queue
+# stays small; majors arrive one by one. PRs run CI without secrets.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      app-minor:
+        update-types: [minor, patch]
+  - package-ecosystem: npm
+    directory: /infra/edge
+    schedule: { interval: weekly, day: monday }
+    groups:
+      edge-minor:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly, day: monday }

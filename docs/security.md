@@ -24,6 +24,8 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 | Collector (SSRF) | Contrato `https` + dominio público → DNS resuelto y revisado contra rangos privados, socket fijado a la IP revisada, sin redirecciones, timeout de 5 s y 64 KB máximo → NetworkPolicy: `web` solo sale a DNS y a 443 público. | `pnpm test` (`safe-fetch.test.ts`) |
 | Contenido (MDX) | MDX se compila a código en el build, así que solo viene de `content/` en este repo (protegido por los rulesets), nunca de los repos de proyectos ni de usuarios. Los borradores (`draft: true`) solo se ven en `next dev`. El historial público de revisiones muestra solo ok/falla y latencia, nunca el mensaje de error (podría revelar IPs o nombres internos). | `/journal/<borrador>` → 404 en producción |
 | Edge (Worker de respaldo) | El Worker solo sirve una copia estática de páginas públicas; en una caída responde 503 en `/status` y `/healthz` (no oculta la caída) y rechaza todo lo que no sea GET/HEAD. Sin `workers.dev` ni URLs de preview. El token de Cloudflare solo puede editar Workers y sus rutas en `beaiapp.com`, y vive en el entorno `production`. El script de copia solo descarga URLs del mismo dominio, con límites de 400 archivos y 40 MB. | `pnpm test` (`fallback.test.ts`) |
+| Cabeceras HTTP | CSP (todo limitado al mismo origen; `script-src` necesita `'unsafe-inline'` porque las páginas son estáticas y Next usa scripts inline), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`. Sin `X-Powered-By`. Las páginas de respaldo llevan `script-src 'none'`. | `curl -sI https://lab.beaiapp.com/` |
+| Dependencias | Dependabot semanal (npm del sitio y del Worker, Actions, Docker). `pnpm audit` limpio al cierre de la Fase 0. | `pnpm audit` |
 | Pods | Pod Security `restricted`: sin root, sin capabilities, sin escalar privilegios, seccomp, raíz de solo lectura, sin token de service account. | `kubectl apply --dry-run=server` sin avisos |
 
 ## Pendiente
@@ -34,6 +36,13 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 - [x] Prueba de caída (2026-10-24): con `web` en 0 réplicas, el sitio sirvió la copia con aviso, `/status` dio 503 y UptimeRobot mandó la alerta DOWN; el sitio volvió en ~14 s al reactivar Flux.
 - [ ] Cloudflare: activar Bot Fight Mode y una regla de rate limiting para `lab.beaiapp.com`.
 - [ ] Rotar el token del túnel si alguna vez aparece en un log, captura o chat (**Tunnel → Refresh token → Rotate**).
+
+## Revisión de cierre: Fase 0 (2026-10-24)
+
+- Agregadas las cabeceras de seguridad y quitado `X-Powered-By`.
+- `undici` vulnerable dentro de `wrangler` (solo herramienta de CI) forzado a la versión corregida.
+- Dependabot configurado.
+- Pendiente en ajustes del repo: secret scanning, push protection y alertas de Dependabot.
 
 ## Lista por fase
 

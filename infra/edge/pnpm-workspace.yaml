@@ -4,3 +4,7 @@
 allowBuilds:
   esbuild: false
   workerd: false
+
+# Patched undici for wrangler's local dev server (miniflare): GHSA DoS/SRI fixes.
+overrides:
+  undici: ">=7.30.1"

@@ -48,6 +48,13 @@ export async function handle(request: Request, deps: Deps): Promise<Response> {
   }
 
   headers.delete("content-length");
+  // Fallback pages carry no scripts at all; say so.
+  headers.set(
+    "content-security-policy",
+    "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'",
+  );
+  headers.set("x-frame-options", "DENY");
+  headers.set("x-content-type-options", "nosniff");
   const html = await snapshot.text();
   return new Response(injectNotice(html, deps.snapshotAt), {
     status: snapshot.ok ? 200 : snapshot.status,

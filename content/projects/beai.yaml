@@ -1,0 +1,7 @@
+# TODO: reemplazar con el lab.yaml real del repo de beAI
+name: beAI
+slug: beai
+phase: 0
+summary: Descripción corta de beAI (pendiente)
+repo: github.com/<tu-usuario>/beai
+metrics: [requests_24h, p95_latency_ms]

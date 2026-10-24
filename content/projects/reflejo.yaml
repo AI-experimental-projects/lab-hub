@@ -1,0 +1,7 @@
+# TODO: reemplazar con el lab.yaml real del repo de Reflejo
+name: Reflejo
+slug: reflejo
+phase: 0
+summary: Descripción corta de Reflejo (pendiente)
+repo: github.com/<tu-usuario>/reflejo
+metrics: [sessions_24h, p95_latency_ms]

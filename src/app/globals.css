@@ -1,26 +1,28 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Low-contrast dark theme. Defined once here and reused by every project UI. */
+@theme {
+  --color-bg: #111317;
+  --color-surface: #171a1f;
+  --color-surface-2: #1d2128;
+  --color-line: #262b33;
+  --color-fg: #c8ccd3;
+  --color-fg-strong: #e1e4e9;
+  --color-muted: #858c97;
+  --color-accent: #8fb3a8;
+  --color-ok: #86b39a;
+  --color-warn: #c9b07a;
+  --color-down: #c98f8f;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-fg);
 }

@@ -25,7 +25,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: web
-          image: ghcr.io/ai-experimental-projects/lab-hub:sha-9e7b63c
+          image: ghcr.io/ai-experimental-projects/lab-hub:sha-9723e5e
           ports:
             - containerPort: 8080
           securityContext:

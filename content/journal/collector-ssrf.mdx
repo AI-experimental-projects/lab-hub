@@ -1,0 +1,30 @@
+export const metadata = {
+  title: "A collector that can't be turned against my own network",
+  date: "2026-10-23",
+  summary: "The Lab Hub fetches URLs from files anyone could propose in a PR. Here's how I protected it against SSRF in three layers, and the bug the tests caught.",
+  kind: "nota",
+  project: "lab-hub",
+  draft: true,
+};
+
+The Lab Hub runs on a server in my house. Every 5 minutes it fetches each project's `/status`, and those URLs come from a `lab.yaml`, a file anyone could propose in a pull request.
+
+That's an open invitation to **SSRF** (*server-side request forgery*): if someone manages to slip in `status_url: https://192.168.1.1/`, my server would make that request for them, from inside my network.
+
+## Three layers
+
+**1. The contract.** `lab.yaml` is validated with zod: only `https` URLs to public domains are accepted. IPs, `localhost`, internal names (`.local`, `.internal`, `.svc.cluster.local`), credentials in the URL and non-standard ports are rejected. If a file doesn't comply, the build fails.
+
+**2. The request.** A public domain can resolve to a private IP. Before connecting, the collector resolves DNS and refuses if **any** of the IPs is private or reserved: LAN, Tailscale, loopback, cloud metadata (`169.254.169.254`). Then it pins the socket to the IP it checked, so DNS can't swap it between the check and the connection (*DNS rebinding*). It doesn't follow redirects either, and caps the response at 5 seconds and 64 KB.
+
+**3. The network.** Even if both layers above failed, a Kubernetes NetworkPolicy only lets the pod reach DNS and port 443 on the public internet. I tested it from the production pod: the router, the Kubernetes API, Redis on Tailscale and the metadata endpoint all come back blocked.
+
+## The bug the tests caught
+
+For layer 2 I used Node's `BlockList` and added the IPv4-mapped range (`::ffff:0:0/96`) to catch addresses like `::ffff:192.168.1.1`. The tests failed: **every** IPv4 address came back blocked, including `1.1.1.1`.
+
+It turns out `BlockList` checks each IPv4 address against IPv6 ranges as if it were its mapped form, so that range literally contains all of IPv4. Without the test, the collector would never have worked and it wouldn't have been obvious why. That range is now checked separately, converting the address to IPv4.
+
+## Takeaway
+
+One layer isn't enough: the contract can be bypassed with creative DNS, and code can have bugs, as I just proved. The network is the last barrier and the easiest one to verify.

@@ -31,6 +31,11 @@ describe("parseManifest", () => {
     expect(result.ok && result.manifest.metrics).toEqual([]);
   });
 
+  it("accepts an optional Spanish summary", () => {
+    const result = parseManifest(withField("summary_es: Evals como gate"));
+    expect(result.ok && result.manifest.summary_es).toBe("Evals como gate");
+  });
+
   it("rejects fields outside the contract", () => {
     expect(issuesOf(withField("api_key: sk-123"))).toEqual([
       expect.objectContaining({ message: expect.stringMatching(/api_key/) }),

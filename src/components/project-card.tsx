@@ -1,23 +1,25 @@
 import Link from "next/link";
-import type { Project } from "@/lib/projects";
+import { INTL, localePath, type Locale } from "@/i18n/config";
+import type { Dictionary } from "@/i18n/dictionaries";
+import { localizedSummary, type Project } from "@/lib/projects";
 
-export const STATE = {
-  up: { label: "En línea", dot: "bg-ok", text: "text-ok" },
-  down: { label: "Con fallas", dot: "bg-down", text: "text-down" },
-  stale: { label: "Sin datos recientes", dot: "bg-warn", text: "text-warn" },
-  unknown: { label: "Sin datos", dot: "bg-muted", text: "text-muted" },
+const STATE_STYLE = {
+  up: { dot: "bg-ok", text: "text-ok" },
+  down: { dot: "bg-down", text: "text-down" },
+  stale: { dot: "bg-warn", text: "text-warn" },
+  unknown: { dot: "bg-muted", text: "text-muted" },
 } as const;
 
 export function formatUptime(value: number) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-export function formatMetric(value: number) {
-  return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 }).format(value);
+export function formatMetric(value: number, locale: Locale) {
+  return new Intl.NumberFormat(INTL[locale], { maximumFractionDigits: 1 }).format(value);
 }
 
-export function formatCheckedAt(ms: number) {
-  return new Intl.DateTimeFormat("es-MX", {
+export function formatCheckedAt(ms: number, locale: Locale) {
+  return new Intl.DateTimeFormat(INTL[locale], {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "UTC",
@@ -25,7 +27,9 @@ export function formatCheckedAt(ms: number) {
   }).format(ms);
 }
 
-export function ProjectCard({ project }: { project: Project }) {
+type Props = { project: Project; locale: Locale; t: Dictionary };
+
+export function ProjectCard({ project, locale, t }: Props) {
   const { manifest, status, uptime, lastCheckedAt } = project;
 
   return (
@@ -33,19 +37,19 @@ export function ProjectCard({ project }: { project: Project }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h2 className="truncate text-base font-medium text-fg-strong">
-            <Link href={`/proyectos/${manifest.slug}`} className="hover:text-accent">
+            <Link href={localePath(locale, `/projects/${manifest.slug}`)} className="hover:text-accent">
               {manifest.name}
             </Link>
           </h2>
-          <p className="mt-1 text-sm text-muted">{manifest.summary}</p>
+          <p className="mt-1 text-sm text-muted">{localizedSummary(manifest, locale)}</p>
         </div>
-        <StateBadge state={project.state} />
+        <StateBadge state={project.state} t={t} />
       </div>
 
       <dl className="grid grid-cols-3 gap-3 border-t border-line pt-4 font-mono text-sm">
-        <Stat label="versión" value={status ? status.version.slice(0, 12) : "—"} />
-        <Stat label="uptime 30d" value={uptime !== null ? formatUptime(uptime) : "—"} />
-        <Stat label="costo/mes" value={status ? `$${status.cost_month_usd.toFixed(2)}` : "—"} />
+        <Stat label={t.stats.version} value={status ? status.version.slice(0, 12) : "—"} />
+        <Stat label={t.stats.uptime} value={uptime !== null ? formatUptime(uptime) : "—"} />
+        <Stat label={t.stats.cost} value={status ? `$${status.cost_month_usd.toFixed(2)}` : "—"} />
       </dl>
 
       {manifest.metrics.length > 0 && (
@@ -54,18 +58,24 @@ export function ProjectCard({ project }: { project: Project }) {
             <Stat
               key={key}
               label={key}
-              value={status?.metrics[key] !== undefined ? formatMetric(status.metrics[key]) : "—"}
+              value={status?.metrics[key] !== undefined ? formatMetric(status.metrics[key], locale) : "—"}
             />
           ))}
         </dl>
       )}
 
       <footer className="mt-auto flex items-center justify-between gap-3 text-xs text-muted">
-        <span>Fase {manifest.phase}</span>
+        <span>
+          {t.card.phase} {manifest.phase}
+        </span>
         <span className="flex items-center gap-3">
-          {lastCheckedAt !== null && <span>revisado {formatCheckedAt(lastCheckedAt)}</span>}
+          {lastCheckedAt !== null && (
+            <span>
+              {t.card.checked} {formatCheckedAt(lastCheckedAt, locale)}
+            </span>
+          )}
           <a href={`https://${manifest.repo}`} className="hover:text-fg-strong">
-            repo
+            {t.card.repo}
           </a>
         </span>
       </footer>
@@ -73,12 +83,12 @@ export function ProjectCard({ project }: { project: Project }) {
   );
 }
 
-export function StateBadge({ state }: { state: Project["state"] }) {
-  const s = STATE[state];
+export function StateBadge({ state, t }: { state: Project["state"]; t: Dictionary }) {
+  const s = STATE_STYLE[state];
   return (
     <span className={`flex shrink-0 items-center gap-2 text-xs ${s.text}`}>
       <span className={`size-2 rounded-full ${s.dot}`} aria-hidden />
-      {s.label}
+      {t.state[state]}
     </span>
   );
 }

@@ -1,0 +1,32 @@
+## Arquitectura
+
+```
+                     lab.beaiapp.com
+internet ──▶ Cloudflare ──túnel──▶ cloudflared ──▶ web (Next.js) ──▶ SQLite (PVC)
+                                    (k3s)            │
+                                                     └─ collector: cada 5 min pide el
+                                                        /status de cada proyecto (https público)
+```
+
+El Hub **jala** datos; los proyectos nunca le envían nada. Conectar un proyecto nuevo es agregar su `lab.yaml`, y si el Hub se cae, ningún proyecto se entera.
+
+| Pieza | Elección | Por qué |
+|---|---|---|
+| Sitio | Next.js 16 (App Router, Cache Components) | Páginas estáticas que se regeneran cada minuto |
+| Datos | SQLite (`node:sqlite`) en un volumen local | Un nodo y cero operación |
+| Collector | Dentro del mismo servidor (`instrumentation.ts`) | Sin servicio extra y sin endpoint público para dispararlo |
+| Hosting | k3s en un homelab + Cloudflare Tunnel | $0 y ningún puerto abierto en la casa |
+| Despliegue | GitOps con Flux | GitHub nunca se conecta al cluster |
+
+## Despliegue
+
+Cada push a `main` pasa por validación del contrato, tests, lint y build. El CI publica la imagen `ghcr.io/ai-experimental-projects/lab-hub:sha-<commit>` y hace un commit con el nuevo tag. Flux, dentro del cluster, lo detecta y hace el rollout. El `version` del `/status` es ese commit.
+
+## Seguridad
+
+- **Red:** NetworkPolicies con todo denegado por defecto. El sitio solo recibe tráfico del túnel y solo sale a DNS y a HTTPS público.
+- **Pods:** Pod Security `restricted`: sin root, sin capabilities y con el sistema de archivos de solo lectura.
+- **Collector:** protegido contra SSRF en tres capas (contrato, DNS revisado con socket fijado y red).
+- **Despliegue:** Flux solo tiene permisos en dos namespaces. `main` está protegido por rulesets.
+
+El detalle está en [docs/security.md](https://github.com/AI-experimental-projects/lab-hub/blob/main/docs/security.md).

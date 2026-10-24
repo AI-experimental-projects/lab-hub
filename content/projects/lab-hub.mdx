@@ -1,32 +1,32 @@
-## Arquitectura
+## Architecture
 
 ```
                      lab.beaiapp.com
-internet ──▶ Cloudflare ──túnel──▶ cloudflared ──▶ web (Next.js) ──▶ SQLite (PVC)
-                                    (k3s)            │
-                                                     └─ collector: cada 5 min pide el
-                                                        /status de cada proyecto (https público)
+internet ──▶ Cloudflare ──tunnel──▶ cloudflared ──▶ web (Next.js) ──▶ SQLite (PVC)
+                                     (k3s)            │
+                                                      └─ collector: every 5 min fetches
+                                                         each project's /status (public https)
 ```
 
-El Hub **jala** datos; los proyectos nunca le envían nada. Conectar un proyecto nuevo es agregar su `lab.yaml`, y si el Hub se cae, ningún proyecto se entera.
+The Hub **pulls** data; projects never push anything to it. Connecting a new project means adding its `lab.yaml`, and if the Hub goes down, no project notices.
 
-| Pieza | Elección | Por qué |
+| Piece | Choice | Why |
 |---|---|---|
-| Sitio | Next.js 16 (App Router, Cache Components) | Páginas estáticas que se regeneran cada minuto |
-| Datos | SQLite (`node:sqlite`) en un volumen local | Un nodo y cero operación |
-| Collector | Dentro del mismo servidor (`instrumentation.ts`) | Sin servicio extra y sin endpoint público para dispararlo |
-| Hosting | k3s en un homelab + Cloudflare Tunnel | $0 y ningún puerto abierto en la casa |
-| Despliegue | GitOps con Flux | GitHub nunca se conecta al cluster |
+| Site | Next.js 16 (App Router, Cache Components) | Static pages regenerated every minute |
+| Data | SQLite (`node:sqlite`) on a local volume | One node, zero operations |
+| Collector | Inside the same server (`instrumentation.ts`) | No extra service and no public endpoint to trigger it |
+| Hosting | k3s on a homelab + Cloudflare Tunnel | $0 and no open ports at home |
+| Deploys | GitOps with Flux | GitHub never connects to the cluster |
 
-## Despliegue
+## Deploys
 
-Cada push a `main` pasa por validación del contrato, tests, lint y build. El CI publica la imagen `ghcr.io/ai-experimental-projects/lab-hub:sha-<commit>` y hace un commit con el nuevo tag. Flux, dentro del cluster, lo detecta y hace el rollout. El `version` del `/status` es ese commit.
+Every push to `main` goes through contract validation, tests, lint and build. CI publishes the image `ghcr.io/ai-experimental-projects/lab-hub:sha-<commit>` and commits the new tag. Flux, inside the cluster, picks it up and rolls it out. The `version` in `/status` is that commit.
 
-## Seguridad
+## Security
 
-- **Red:** NetworkPolicies con todo denegado por defecto. El sitio solo recibe tráfico del túnel y solo sale a DNS y a HTTPS público.
-- **Pods:** Pod Security `restricted`: sin root, sin capabilities y con el sistema de archivos de solo lectura.
-- **Collector:** protegido contra SSRF en tres capas (contrato, DNS revisado con socket fijado y red).
-- **Despliegue:** Flux solo tiene permisos en dos namespaces. `main` está protegido por rulesets.
+- **Network:** default-deny NetworkPolicies. The site only receives traffic from the tunnel and only goes out to DNS and public HTTPS.
+- **Pods:** Pod Security `restricted`: no root, no capabilities, read-only filesystem.
+- **Collector:** protected against SSRF in three layers (contract, DNS check with a pinned socket, and network).
+- **Deploys:** Flux only has permissions in two namespaces. `main` is protected by rulesets.
 
-El detalle está en [docs/security.md](https://github.com/AI-experimental-projects/lab-hub/blob/main/docs/security.md).
+Details in [docs/security.md](https://github.com/AI-experimental-projects/lab-hub/blob/main/docs/security.md).

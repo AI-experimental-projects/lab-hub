@@ -1,7 +1,8 @@
 name: Lab Hub
 slug: lab-hub
 phase: 0
-summary: Este sitio. Lee el /status de cada proyecto del lab y lo muestra en vivo.
+summary: This site. Reads each lab project's /status and shows it live.
+summary_es: Este sitio. Lee el /status de cada proyecto del lab y lo muestra en vivo.
 repo: github.com/AI-experimental-projects/lab-hub
 demo: https://lab.beaiapp.com
 status_url: https://lab.beaiapp.com/status

@@ -28,6 +28,8 @@ export const LabManifest = z
     slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "lowercase letters, digits and dashes"),
     phase: z.number().int().min(0).max(6),
     summary: z.string().min(1).max(160),
+    // Optional Spanish summary; the Hub falls back to `summary`.
+    summary_es: z.string().min(1).max(160).optional(),
     repo: z
       .string()
       .regex(/^github\.com\/[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/, "must look like github.com/<owner>/<repo>"),

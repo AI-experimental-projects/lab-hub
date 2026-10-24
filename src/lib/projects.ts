@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { cacheLife } from "next/cache";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "../i18n/config.ts";
 import type { LabManifest, LabStatus } from "./contract.ts";
 import { getDb } from "./db.ts";
 import { formatIssues, parseManifest } from "./lab-files.ts";
@@ -71,13 +72,20 @@ export type RecentCheck = { checkedAt: number; ok: boolean; latencyMs: number | 
 
 export async function getProject(
   slug: string,
-): Promise<{ project: Project; recent: RecentCheck[]; hasPage: boolean } | null> {
+): Promise<{ project: Project; recent: RecentCheck[]; pages: Locale[] } | null> {
   "use cache";
   cacheLife("minutes");
 
   const manifest = (await loadManifests()).find((m) => m.slug === slug);
   if (!manifest) return null;
-  const hasPage = existsSync(path.join(PROJECTS_DIR, `${slug}.mdx`));
+  // Optional long-form page: <slug>.mdx (English) and/or <slug>.es.mdx (Spanish).
+  const pages = LOCALES.filter((l) =>
+    existsSync(path.join(PROJECTS_DIR, l === DEFAULT_LOCALE ? `${slug}.mdx` : `${slug}.${l}.mdx`)),
+  );
   // 48 checks = the last 4 hours at the 5-minute interval.
-  return { project: toProject(manifest, Date.now()), recent: getDb().recent(slug, 48).reverse(), hasPage };
+  return { project: toProject(manifest, Date.now()), recent: getDb().recent(slug, 48).reverse(), pages };
+}
+
+export function localizedSummary(manifest: LabManifest, locale: Locale): string {
+  return (locale === "es" && manifest.summary_es) || manifest.summary;
 }

@@ -45,6 +45,13 @@ Las URLs vienen de archivos que cualquiera podría proponer en un PR, así que e
 2. **Petición** ([src/lib/safe-fetch.ts](src/lib/safe-fetch.ts)): resuelve el DNS, rechaza si alguna IP es privada o reservada y fija el socket a la IP revisada (contra DNS rebinding). Sin redirecciones, con timeout de 5 s y respuestas de máximo 64 KB.
 3. **Red** (NetworkPolicy): el pod solo puede salir a DNS y a HTTPS en internet público.
 
+## Páginas
+
+- `/`: una tarjeta por proyecto.
+- `/proyectos/<slug>`: métricas, historial de revisiones y, si existe, `content/projects/<slug>.mdx` (arquitectura, notas).
+- `/bitacora`: entradas en `content/bitacora/*.mdx`, con `export const metadata = { title, date, summary, kind, project?, draft? }`. Los borradores solo se ven con `pnpm dev`.
+- `/status`: el `/status` del propio Hub.
+
 ## Desarrollo
 
 ```bash

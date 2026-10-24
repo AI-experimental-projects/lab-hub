@@ -34,6 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="hover:text-fg-strong">
                 Proyectos
               </Link>
+              <Link href="/bitacora" className="hover:text-fg-strong">
+                Bitácora
+              </Link>
             </nav>
           </div>
         </header>

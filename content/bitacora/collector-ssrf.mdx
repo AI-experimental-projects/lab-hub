@@ -1,0 +1,30 @@
+export const metadata = {
+  title: "Un collector que no se deja usar contra mi propia red",
+  date: "2026-10-23",
+  summary: "El Lab Hub pide URLs que vienen de archivos que cualquiera podría proponer en un PR. Así lo protegí contra SSRF en tres capas, y el bug que encontraron los tests.",
+  kind: "nota",
+  project: "lab-hub",
+  draft: true,
+};
+
+El Lab Hub corre en un servidor en mi casa. Cada 5 minutos pide el `/status` de cada proyecto, y esas URLs vienen de un `lab.yaml`, un archivo que cualquiera podría proponer en un pull request.
+
+Eso es una invitación a un **SSRF** (*server-side request forgery*): si alguien logra meter `status_url: https://192.168.1.1/`, mi servidor haría la petición por él, desde dentro de mi red.
+
+## Tres capas
+
+**1. El contrato.** El `lab.yaml` se valida con zod: solo se aceptan URLs `https` a dominios públicos. Se rechazan IPs, `localhost`, nombres internos (`.local`, `.internal`, `.svc.cluster.local`), credenciales en la URL y puertos que no sean el estándar. Si un archivo no cumple, el build falla.
+
+**2. La petición.** Un dominio público puede resolver a una IP privada. Antes de conectar, el collector resuelve el DNS y rechaza si **cualquiera** de las IPs es privada o reservada: LAN, Tailscale, loopback, la metadata de la nube (`169.254.169.254`). Luego fija el socket a la IP que revisó, para que el DNS no pueda cambiarla entre la revisión y la conexión (*DNS rebinding*). Tampoco sigue redirecciones, y limita la respuesta a 5 segundos y 64 KB.
+
+**3. La red.** Aunque las dos capas anteriores fallaran, una NetworkPolicy de Kubernetes solo deja salir al pod hacia DNS y hacia el puerto 443 en internet público. Lo probé desde el pod en producción: el router, el API de Kubernetes, Redis en Tailscale y la metadata salen todos bloqueados.
+
+## El bug que encontraron los tests
+
+Para la capa 2 usé `BlockList` de Node y metí el rango IPv4-mapeado (`::ffff:0:0/96`) para atrapar direcciones como `::ffff:192.168.1.1`. Los tests fallaron: **todas** las IPv4 salían bloqueadas, incluida `1.1.1.1`.
+
+Resulta que `BlockList` compara cada IPv4 contra los rangos IPv6 como si fuera su forma mapeada, así que ese rango contiene literalmente todo IPv4. Sin el test, el collector nunca habría funcionado y no habría sido obvio por qué. Ahora ese rango se revisa aparte, convirtiendo la dirección a IPv4.
+
+## Lo que me llevo
+
+Una sola capa no basta: el contrato se puede saltar con un DNS creativo, y el código puede tener bugs, como acabo de demostrar. La red es la última barrera y la más fácil de verificar.

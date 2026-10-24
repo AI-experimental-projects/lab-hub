@@ -1,21 +1,22 @@
+import Link from "next/link";
 import type { Project } from "@/lib/projects";
 
-const STATE = {
+export const STATE = {
   up: { label: "En línea", dot: "bg-ok", text: "text-ok" },
   down: { label: "Con fallas", dot: "bg-down", text: "text-down" },
   stale: { label: "Sin datos recientes", dot: "bg-warn", text: "text-warn" },
   unknown: { label: "Sin datos", dot: "bg-muted", text: "text-muted" },
 } as const;
 
-function formatUptime(value: number) {
+export function formatUptime(value: number) {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-function formatMetric(value: number) {
+export function formatMetric(value: number) {
   return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 }).format(value);
 }
 
-function formatCheckedAt(ms: number) {
+export function formatCheckedAt(ms: number) {
   return new Intl.DateTimeFormat("es-MX", {
     hour: "2-digit",
     minute: "2-digit",
@@ -26,27 +27,19 @@ function formatCheckedAt(ms: number) {
 
 export function ProjectCard({ project }: { project: Project }) {
   const { manifest, status, uptime, lastCheckedAt } = project;
-  const state = STATE[project.state];
 
   return (
     <article className="flex flex-col gap-5 rounded-lg border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h2 className="truncate text-base font-medium text-fg-strong">
-            {manifest.demo ? (
-              <a href={manifest.demo} className="hover:text-accent">
-                {manifest.name}
-              </a>
-            ) : (
-              manifest.name
-            )}
+            <Link href={`/proyectos/${manifest.slug}`} className="hover:text-accent">
+              {manifest.name}
+            </Link>
           </h2>
           <p className="mt-1 text-sm text-muted">{manifest.summary}</p>
         </div>
-        <span className={`flex shrink-0 items-center gap-2 text-xs ${state.text}`}>
-          <span className={`size-2 rounded-full ${state.dot}`} aria-hidden />
-          {state.label}
-        </span>
+        <StateBadge state={project.state} />
       </div>
 
       <dl className="grid grid-cols-3 gap-3 border-t border-line pt-4 font-mono text-sm">
@@ -80,7 +73,17 @@ export function ProjectCard({ project }: { project: Project }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+export function StateBadge({ state }: { state: Project["state"] }) {
+  const s = STATE[state];
+  return (
+    <span className={`flex shrink-0 items-center gap-2 text-xs ${s.text}`}>
+      <span className={`size-2 rounded-full ${s.dot}`} aria-hidden />
+      {s.label}
+    </span>
+  );
+}
+
+export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
       <dt className="truncate text-xs text-muted">{label}</dt>

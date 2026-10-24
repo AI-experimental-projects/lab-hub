@@ -73,6 +73,14 @@ export class LabDb {
     return r.n === 0 ? null : (r.up ?? 0) / r.n;
   }
 
+  // Newest first. Errors are left out: this feeds public pages.
+  recent(slug: string, limit: number): { checkedAt: number; ok: boolean; latencyMs: number | null }[] {
+    const rows = this.db
+      .prepare("SELECT checked_at, ok, latency_ms FROM checks WHERE slug = ? ORDER BY checked_at DESC LIMIT ?")
+      .all(slug, limit) as { checked_at: number; ok: number; latency_ms: number | null }[];
+    return rows.map((r) => ({ checkedAt: r.checked_at, ok: r.ok === 1, latencyMs: r.latency_ms }));
+  }
+
   countSince(since: number): number {
     return (this.db.prepare("SELECT COUNT(*) AS n FROM checks WHERE checked_at >= ?").get(since) as {
       n: number;

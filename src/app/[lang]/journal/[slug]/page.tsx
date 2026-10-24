@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { localePath } from "@/i18n/config";
 import { getDictionary } from "@/i18n/server";
 import { getEntry, listSlugs } from "@/lib/journal";
+import { alternatesFor } from "@/lib/site";
 
 export async function generateStaticParams() {
   return (await listSlugs()).map((slug) => ({ slug }));
@@ -14,7 +15,12 @@ export async function generateMetadata(props: PageProps<"/[lang]/journal/[slug]"
   const [{ slug }, { locale }] = await Promise.all([props.params, getDictionary()]);
   const entry = await getEntry(slug, locale);
   if (!entry) return {};
-  return { title: `${entry.meta.title} · Lab Hub`, description: entry.meta.summary };
+  return {
+    title: `${entry.meta.title} · Lab Hub`,
+    description: entry.meta.summary,
+    alternates: alternatesFor(locale, `/journal/${slug}`),
+    openGraph: { type: "article", title: entry.meta.title, description: entry.meta.summary, publishedTime: entry.meta.date },
+  };
 }
 
 export default async function EntryPage(props: PageProps<"/[lang]/journal/[slug]">) {

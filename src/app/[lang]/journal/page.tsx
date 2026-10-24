@@ -3,10 +3,15 @@ import Link from "next/link";
 import { localePath } from "@/i18n/config";
 import { getDictionary } from "@/i18n/server";
 import { listEntries } from "@/lib/journal";
+import { alternatesFor } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getDictionary();
-  return { title: `${t.journal.title} · Lab Hub`, description: t.journal.intro };
+  const { locale, t } = await getDictionary();
+  return {
+    title: `${t.journal.title} · Lab Hub`,
+    description: t.journal.intro,
+    alternates: alternatesFor(locale, "/journal"),
+  };
 }
 
 export default async function JournalPage() {

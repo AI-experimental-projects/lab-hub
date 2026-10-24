@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LanguageSwitch } from "@/components/language-switch";
 import { LOCALES, localePath } from "@/i18n/config";
 import { getDictionary } from "@/i18n/server";
+import { alternatesFor, SITE_URL } from "@/lib/site";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -21,8 +22,19 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { t } = await getDictionary();
-  return { title: "Lab Hub", description: t.meta.description };
+  const { locale, t } = await getDictionary();
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: "Lab Hub",
+    description: t.meta.description,
+    alternates: alternatesFor(locale, "/"),
+    openGraph: {
+      siteName: "Lab Hub",
+      type: "website",
+      locale: locale === "es" ? "es_MX" : "en_US",
+    },
+    twitter: { card: "summary_large_image" },
+  };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/[lang]">) {

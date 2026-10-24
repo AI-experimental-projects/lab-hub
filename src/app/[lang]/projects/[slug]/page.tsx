@@ -14,6 +14,7 @@ import type { Dictionary } from "@/i18n/dictionaries";
 import { getDictionary } from "@/i18n/server";
 import { listEntries } from "@/lib/journal";
 import { getManifests, getProject, localizedSummary, type RecentCheck } from "@/lib/projects";
+import { alternatesFor } from "@/lib/site";
 
 export async function generateStaticParams() {
   return (await getManifests()).map((m) => ({ slug: m.slug }));
@@ -22,7 +23,14 @@ export async function generateStaticParams() {
 export async function generateMetadata(props: PageProps<"/[lang]/projects/[slug]">): Promise<Metadata> {
   const [{ slug }, { locale }] = await Promise.all([props.params, getDictionary()]);
   const manifest = (await getManifests()).find((m) => m.slug === slug);
-  return manifest ? { title: `${manifest.name} · Lab Hub`, description: localizedSummary(manifest, locale) } : {};
+  if (!manifest) return {};
+  const description = localizedSummary(manifest, locale);
+  return {
+    title: `${manifest.name} · Lab Hub`,
+    description,
+    alternates: alternatesFor(locale, `/projects/${slug}`),
+    openGraph: { title: manifest.name, description },
+  };
 }
 
 export default async function ProjectPage(props: PageProps<"/[lang]/projects/[slug]">) {

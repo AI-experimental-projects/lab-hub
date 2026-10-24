@@ -5,6 +5,10 @@ import { NextResponse, type NextRequest } from "next/server";
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Next emits share-image URLs with the internal /en prefix; crawlers often don't
+  // follow redirects for those, so serve them as they are.
+  if (pathname.endsWith("/opengraph-image")) return;
+
   if (pathname === "/en" || pathname.startsWith("/en/")) {
     const url = request.nextUrl.clone();
     url.pathname = pathname.slice(3) || "/";

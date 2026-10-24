@@ -1,0 +1,17 @@
+# Cluster-scoped objects. Applied by hand at bootstrap, NOT by Flux:
+# Flux's deployer account can only act inside these namespaces.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-hub
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloudflared
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

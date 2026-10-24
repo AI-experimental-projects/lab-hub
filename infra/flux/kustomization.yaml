@@ -1,0 +1,41 @@
+# Flux controllers (source + kustomize only), exported with `flux install --export`
+# and locked down:
+#   - every Kustomization without an explicit serviceAccountName runs as `deployer`,
+#     which can only act inside the namespaces granted in rbac.yaml
+#   - no cross-namespace references
+#   - flux-system enforces Pod Security "restricted"
+#
+# Apply: kubectl apply -k infra/flux && kubectl apply -f infra/flux/sync/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gotk-components.yaml
+  - rbac.yaml
+patches:
+  - target:
+      kind: Deployment
+      name: kustomize-controller
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --default-service-account=deployer
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --no-cross-namespace-refs=true
+  - target:
+      kind: Deployment
+      name: source-controller
+    patch: |
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --no-cross-namespace-refs=true
+  - target:
+      kind: Namespace
+      name: flux-system
+    patch: |
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce
+        value: restricted
+      - op: add
+        path: /metadata/labels/pod-security.kubernetes.io~1enforce-version
+        value: latest

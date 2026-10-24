@@ -19,12 +19,14 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 | Túnel | Solo los hostnames dados de alta en el dashboard. Catch-all `http_status:404`. WARP routing apagado. | Logs de `cloudflared`: `Updated to new configuration` |
 | Token del túnel | Vive solo en el Secret `cloudflared-token`. Nunca en el repo ni en el chat. | `git grep -E "eyJ[A-Za-z0-9_-]{100,}"` vacío |
 | Red del cluster | NetworkPolicies con todo denegado por defecto. `cloudflared` solo sale a DNS, al edge de Cloudflare (internet público, sin rangos privados) y a `lab-hub:8080`. | Prueba con un pod de prueba con la etiqueta `app=cloudflared` |
+| Despliegue (GitOps) | Flux lee el repo público; GitHub no tiene acceso al cluster. Flux despliega como `deployer`, con rol `admin` solo en `lab-hub` y `cloudflared`: no puede tocar `kube-system`, namespaces ni recursos de todo el cluster. `targetNamespace` fuerza el namespace de cada manifiesto. | `kubectl auth can-i --as=system:serviceaccount:flux-system:deployer create pods -n kube-system` → `no` |
 | Pods | Pod Security `restricted`: sin root, sin capabilities, sin escalar privilegios, seccomp, raíz de solo lectura, sin token de service account. | `kubectl apply --dry-run=server` sin avisos |
 
 ## Pendiente
 
 - [x] Firewall del host activo (2026-10-23). 6443 y 10250 siguen escuchando, pero ya no son accesibles desde la LAN.
 - [x] Probado desde otra laptop de la LAN: `nc -zv 192.168.1.74 6443` da timeout (2026-10-23).
+- [ ] GitHub: ruleset en `main` que bloquee force push y borrado (con GitOps, `main` es lo que corre en el cluster).
 - [ ] Cloudflare: activar Bot Fight Mode y una regla de rate limiting para `lab.beaiapp.com`.
 - [ ] Rotar el token del túnel si alguna vez aparece en un log, captura o chat (**Tunnel → Refresh token → Rotate**).
 
@@ -44,7 +46,8 @@ Riesgos que ya se ven venir en fases siguientes:
 
 | Fase | Riesgo | Mitigación planeada |
 |---|---|---|
-| 0 · sem. 4 | El collector hace peticiones a las URLs de `lab.yaml` (SSRF): un `status_url` malicioso podría apuntar a la LAN. | Solo `https`, lista de dominios permitidos, y NetworkPolicy que no deja salir a rangos privados. |
+| 0 · sem. 3 | Quien pueda hacer push a `main` despliega en el cluster. | Flux limitado a 2 namespaces; ruleset en `main`; los PRs de forks no tienen permisos de escritura. |
+| 0 · sem. 4 | El collector hace peticiones a las URLs de `lab.yaml` (SSRF): un `status_url` malicioso podría apuntar a la LAN. | Hecho en sem. 3: el contrato solo acepta `https` a dominios públicos (sin IPs, nombres internos, credenciales ni puertos). Falta: resolver DNS y rechazar IPs privadas al hacer la petición, y NetworkPolicy sin rangos privados. |
 | 0 · sem. 8 | El Hub como plantilla pública recibe PRs de terceros. | El CI de PRs externos no tiene acceso a secretos; revisión manual de `lab.yaml`. |
 | 1 · EvalGate | La GitHub Action corre código de PRs y usa API keys de LLMs. | `pull_request` (no `pull_request_target`), keys con presupuesto limitado, sin secretos para forks. |
 | 2 · Sim2Sim | Jobs de GPU en AWS. | Presupuesto con alerta y apagado automático; IAM con mínimo privilegio. |

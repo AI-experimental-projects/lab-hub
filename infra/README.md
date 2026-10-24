@@ -20,15 +20,31 @@ Después, el firewall del host (bloquea la LAN, deja pasar las redes de k3s y Ta
 ./infra/host/firewall.sh
 ```
 
-## 2. Lab Hub
+## 2. Namespaces y Flux (GitOps)
 
-El CI publica una imagen por commit en `ghcr.io/ai-experimental-projects/lab-hub:sha-<commit>`. Para desplegar un commit, cambia el tag en `infra/k8s/lab-hub/web.yaml`, haz commit y aplica:
+Los namespaces son objetos de todo el cluster y se aplican a mano. Todo lo demás lo despliega Flux desde `main`:
 
 ```bash
-kubectl apply -f infra/k8s/lab-hub/
-kubectl -n lab-hub rollout status deploy/web
-kubectl -n lab-hub port-forward svc/web 8080:80   # abrir http://localhost:8080
+kubectl apply -f infra/k8s/cluster/
+kubectl apply -k infra/flux
+kubectl -n flux-system wait --for=condition=Available deploy --all --timeout=180s
+kubectl apply -f infra/flux/sync/
+flux get kustomizations          # lab-hub y cloudflared en Ready
 ```
+
+Flux despliega con la cuenta `deployer`, que solo tiene permisos dentro de `lab-hub` y `cloudflared`.
+
+### Cómo se despliega una versión
+
+```
+push a main ─▶ CI: validate, test, lint, build ─▶ imagen ghcr.io/…:sha-<commit>
+            ─▶ CI: commit "deploy: web sha-<commit>" en web.yaml
+            ─▶ Flux (dentro del cluster) ve el commit y hace el rollout
+```
+
+GitHub nunca se conecta al cluster: Flux lee el repo público. Después de cada push, `git pull --rebase` trae el commit de deploy del bot.
+
+Para revertir: `git revert` del commit `deploy: …` (o de cualquier cambio en `infra/k8s/`) y push.
 
 ## 3. Cloudflare Tunnel
 
@@ -36,10 +52,8 @@ kubectl -n lab-hub port-forward svc/web 8080:80   # abrir http://localhost:8080
 2. Crea el Secret (el token nunca entra al repo):
 
    ```bash
-   kubectl create namespace cloudflared
    read -rsp "Token: " TOKEN && echo
    kubectl -n cloudflared create secret generic cloudflared-token --from-literal=token="$TOKEN" && unset TOKEN
-   kubectl apply -f infra/k8s/cloudflared/
    ```
 
 3. En el tunnel, **Add route → Published application**: `lab.<tu-dominio>` → `http://web.lab-hub.svc.cluster.local:80`. Cloudflare crea el CNAME solo.

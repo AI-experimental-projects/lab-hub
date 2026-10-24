@@ -1,0 +1,50 @@
+# What Flux keeps in sync: main of the public repo, only infra/k8s/{lab-hub,cloudflared}.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: lab-hub
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: https://github.com/AI-experimental-projects/lab-hub
+  ref:
+    branch: main
+  # Only package the app manifests; nothing else in the repo reaches the cluster.
+  ignore: |
+    /*
+    !/infra/k8s/lab-hub/
+    !/infra/k8s/cloudflared/
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: lab-hub
+  namespace: flux-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: GitRepository
+    name: lab-hub
+  path: ./infra/k8s/lab-hub
+  targetNamespace: lab-hub
+  serviceAccountName: deployer
+  prune: true
+  wait: true
+  timeout: 3m
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cloudflared
+  namespace: flux-system
+spec:
+  interval: 10m
+  sourceRef:
+    kind: GitRepository
+    name: lab-hub
+  path: ./infra/k8s/cloudflared
+  targetNamespace: cloudflared
+  serviceAccountName: deployer
+  prune: true
+  wait: true
+  timeout: 3m

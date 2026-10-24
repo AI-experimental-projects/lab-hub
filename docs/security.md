@@ -19,6 +19,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 | Túnel | Solo los hostnames dados de alta en el dashboard. Catch-all `http_status:404`. WARP routing apagado. | Logs de `cloudflared`: `Updated to new configuration` |
 | Token del túnel | Vive solo en el Secret `cloudflared-token`. Nunca en el repo ni en el chat. | `git grep -E "eyJ[A-Za-z0-9_-]{100,}"` vacío |
 | Red del cluster | NetworkPolicies con todo denegado por defecto. `cloudflared` solo sale a DNS, al edge de Cloudflare (internet público, sin rangos privados) y a `lab-hub:8080`. | Prueba con un pod de prueba con la etiqueta `app=cloudflared` |
+| Repo | `main` protegido por rulesets. El CI hace push con una deploy key de un solo repo, guardada en el entorno `production` (solo `main`). Los PRs y forks no la ven. | `gh api repos/AI-experimental-projects/lab-hub/rulesets` |
 | Despliegue (GitOps) | Flux lee el repo público; GitHub no tiene acceso al cluster. Flux despliega como `deployer`, con rol `admin` solo en `lab-hub` y `cloudflared`: no puede tocar `kube-system`, namespaces ni recursos de todo el cluster. `targetNamespace` fuerza el namespace de cada manifiesto. | `kubectl auth can-i --as=system:serviceaccount:flux-system:deployer create pods -n kube-system` → `no` |
 | Pods | Pod Security `restricted`: sin root, sin capabilities, sin escalar privilegios, seccomp, raíz de solo lectura, sin token de service account. | `kubectl apply --dry-run=server` sin avisos |
 
@@ -26,7 +27,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 
 - [x] Firewall del host activo (2026-10-23). 6443 y 10250 siguen escuchando, pero ya no son accesibles desde la LAN.
 - [x] Probado desde otra laptop de la LAN: `nc -zv 192.168.1.74 6443` da timeout (2026-10-23).
-- [ ] GitHub: ruleset en `main` que bloquee force push y borrado (con GitOps, `main` es lo que corre en el cluster).
+- [x] GitHub (2026-10-23): ruleset `main-integrity` (nadie hace force push ni borra `main`) y `main-only-owner` (solo admins de la org y la deploy key del CI pueden hacer push a `main`).
 - [ ] Cloudflare: activar Bot Fight Mode y una regla de rate limiting para `lab.beaiapp.com`.
 - [ ] Rotar el token del túnel si alguna vez aparece en un log, captura o chat (**Tunnel → Refresh token → Rotate**).
 

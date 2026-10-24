@@ -24,7 +24,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 ## Pendiente
 
 - [x] Firewall del host activo (2026-10-23). 6443 y 10250 siguen escuchando, pero ya no son accesibles desde la LAN.
-- [ ] Probar desde otro equipo de la LAN que 6443 y 10250 no responden (`nc -zv 192.168.1.74 6443`).
+- [x] Probado desde otra laptop de la LAN: `nc -zv 192.168.1.74 6443` da timeout (2026-10-23).
 - [ ] Cloudflare: activar Bot Fight Mode y una regla de rate limiting para `lab.beaiapp.com`.
 - [ ] Rotar el token del túnel si alguna vez aparece en un log, captura o chat (**Tunnel → Refresh token → Rotate**).
 

@@ -46,6 +46,12 @@ GitHub nunca se conecta al cluster: Flux lee el repo público. Después de cada 
 
 Para revertir: `git revert` del commit `deploy: …` (o de cualquier cambio en `infra/k8s/`) y push.
 
+El bot hace push con una deploy key (SSH, solo este repo) guardada como secreto `DEPLOY_KEY` del entorno `production`, que solo `main` puede usar. Para crearla o rotarla:
+
+```bash
+./infra/github/setup-deploy-key.sh            # borra antes la llave vieja en Settings → Deploy keys
+```
+
 ## 3. Cloudflare Tunnel
 
 1. En el dashboard de Cloudflare: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Ponle de nombre `homelab` y copia **solo el token** (la parte `eyJ...` del comando que muestra, no el comando entero).

@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:24-alpine AS base
+FROM node:25-alpine AS base
 WORKDIR /app
 RUN corepack enable
 
@@ -15,7 +15,7 @@ COPY . .
 RUN pnpm build
 
 # Runtime: only the standalone server, static assets and content. Runs as non-root.
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 WORKDIR /app
 # Commit the image was built from; reported by /status.
 ARG LAB_VERSION=dev

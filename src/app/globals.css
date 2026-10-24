@@ -23,6 +23,24 @@ html {
   color-scheme: dark;
 }
 
+/* Light palette from the same tokens, low-contrast to match the dark theme. */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #f4f5f7;
+    --color-surface: #eceef2;
+    --color-surface-2: #e2e5ea;
+    --color-line: #d0d4db;
+    --color-fg: #3c424c;
+    --color-fg-strong: #1c2128;
+    --color-muted: #6b7280;
+    --color-accent: #3d6b5c;
+    --color-ok: #2f6b4f;
+    --color-warn: #8a6d1f;
+    --color-down: #a33c3c;
+    color-scheme: light;
+  }
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-fg);

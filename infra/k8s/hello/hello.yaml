@@ -1,0 +1,68 @@
+# Week 1 smoke test: a static page reachable through Cloudflare Tunnel.
+# Replaced by the Lab Hub deployment once the app is containerized.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-hub
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hello
+  namespace: lab-hub
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Lab Hub</title>
+      <style>
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center;
+               background: #111317; color: #c8ccd3; font: 16px/1.5 ui-monospace, monospace; }
+        span { color: #8fb3a8; }
+      </style>
+    </head>
+    <body><p>lab<span>/</span>hub · hola mundo desde k3s</p></body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello
+  namespace: lab-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: hello }
+  template:
+    metadata:
+      labels: { app: hello }
+    spec:
+      containers:
+        - name: nginx
+          image: nginxinc/nginx-unprivileged:1.29-alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: site
+              mountPath: /usr/share/nginx/html
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+      volumes:
+        - name: site
+          configMap:
+            name: hello
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello
+  namespace: lab-hub
+spec:
+  selector: { app: hello }
+  ports:
+    - port: 80
+      targetPort: 8080

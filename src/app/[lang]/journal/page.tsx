@@ -7,10 +7,14 @@ import { alternatesFor } from "@/lib/site";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale, t } = await getDictionary();
+  const feed = locale === "es" ? "/es/journal/feed.xml" : "/journal/feed.xml";
   return {
     title: `${t.journal.title} · Lab Hub`,
     description: t.journal.intro,
-    alternates: alternatesFor(locale, "/journal"),
+    alternates: {
+      ...alternatesFor(locale, "/journal"),
+      types: { "application/rss+xml": [{ url: feed }] },
+    },
   };
 }
 

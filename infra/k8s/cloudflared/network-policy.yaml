@@ -1,0 +1,41 @@
+# cloudflared may only: resolve DNS, talk to Cloudflare's edge on the public
+# internet, and reach the lab-hub web pods. It cannot reach the LAN, the
+# Kubernetes API, or any other in-cluster service, even if a bad route is
+# added in the Cloudflare dashboard.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cloudflared
+  namespace: cloudflared
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+              - 127.0.0.0/8
+      ports:
+        - { protocol: TCP, port: 7844 }
+        - { protocol: UDP, port: 7844 }
+        - { protocol: TCP, port: 443 }
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: lab-hub }
+      ports:
+        - { protocol: TCP, port: 8080 }

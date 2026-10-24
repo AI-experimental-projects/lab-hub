@@ -6,6 +6,9 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: cloudflared
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -20,14 +23,20 @@ spec:
     metadata:
       labels: { app: cloudflared }
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
         sysctls:
           - name: net.ipv4.ping_group_range
             value: "65532 65532"
       containers:
         - name: cloudflared
           image: cloudflare/cloudflared:2026.10.3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
           args:
             - tunnel
             - --no-autoupdate

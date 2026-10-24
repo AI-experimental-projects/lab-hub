@@ -69,3 +69,23 @@ El bot hace push con una deploy key (SSH, solo este repo) guardada como secreto 
    kubectl -n cloudflared get pods        # 2/2 Running
    curl -I https://lab.<tu-dominio>       # 200
    ```
+
+## 4. Respaldo en el edge (Cloudflare Worker)
+
+`infra/edge/` es un Worker delante de `lab.beaiapp.com`: pasa cada petición al homelab y, si no responde (5xx o más de 8 s), sirve la última copia del sitio con un aviso. `/status` y `/healthz` responden 503 en ese caso, para que los monitores vean la caída.
+
+La copia la toma `scripts/snapshot.ts` (páginas del `sitemap.xml` y sus archivos estáticos). El workflow `edge.yml` la refresca cada 30 minutos y despliega el Worker; si el sitio está caído en ese momento, no sobrescribe la copia buena.
+
+Configuración (una vez):
+
+1. **Token de Cloudflare.** En **My Profile → API Tokens → Create Token → Custom token**, con estos permisos:
+   - Account · Workers Scripts · Edit
+   - Zone · Workers Routes · Edit, solo para la zona `beaiapp.com`
+2. **Guardarlo en GitHub** (entorno `production`, solo `main`):
+
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN --env production -R AI-experimental-projects/lab-hub
+   gh variable set CLOUDFLARE_ACCOUNT_ID --env production -R AI-experimental-projects/lab-hub --body <account-id>
+   ```
+
+3. Correr el workflow **Edge snapshot** a mano (Actions → Run workflow).

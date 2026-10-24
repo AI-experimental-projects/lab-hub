@@ -1,0 +1,21 @@
+// Edge Worker in front of lab.beaiapp.com: passes requests to the homelab and
+// serves the last snapshot when it's unreachable. Deployed by the snapshot workflow.
+{
+  "name": "lab-hub-edge",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-10-01",
+  "routes": [{ "pattern": "lab.beaiapp.com/*", "zone_name": "beaiapp.com" }],
+  // No *.workers.dev or preview URLs: the only way in is the real domain.
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./snapshot",
+    "binding": "SNAPSHOT",
+    // The Worker decides when the snapshot is used.
+    "run_worker_first": true,
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "vars": { "SNAPSHOT_AT": "unknown" },
+  "observability": { "enabled": true }
+}

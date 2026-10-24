@@ -1,0 +1,51 @@
+name: Edge snapshot
+
+# Refreshes the fallback snapshot and redeploys the edge Worker.
+# Runs on main only (the production environment holds the Cloudflare token).
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["infra/edge/**", "scripts/snapshot.ts", ".github/workflows/edge.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Take snapshot
+        id: snap
+        run: |
+          set +e
+          node scripts/snapshot.ts infra/edge/snapshot
+          code=$?
+          # 2 = site unhealthy: keep the snapshot that's already deployed.
+          if [ $code -eq 2 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          exit $code
+      - name: Deploy Worker
+        if: steps.snap.outputs.skip != 'true'
+        working-directory: infra/edge
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Cloudflare token or account id not configured; skipping deploy"
+            exit 0
+          fi
+          pnpm install --ignore-workspace --frozen-lockfile
+          pnpm exec wrangler deploy --var "SNAPSHOT_AT:$(date -u +%Y-%m-%dT%H:%M:%SZ)"

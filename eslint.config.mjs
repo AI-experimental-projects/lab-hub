@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Edge Worker: its own package and generated output.
+    "infra/edge/node_modules/**",
+    "infra/edge/.wrangler/**",
+    "infra/edge/dist/**",
+    "infra/edge/snapshot/**",
   ]),
 ]);
 

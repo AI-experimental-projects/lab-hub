@@ -3,5 +3,5 @@ name: beAI
 slug: beai
 phase: 0
 summary: Descripción corta de beAI (pendiente)
-repo: github.com/<tu-usuario>/beai
+repo: github.com/Redevil15/beai_frontend
 metrics: [requests_24h, p95_latency_ms]

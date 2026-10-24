@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { parse } from "yaml";
-import { LabManifest, LabStatus } from "./contract";
+import { type LabManifest, LabStatus } from "./contract.ts";
+import { formatIssues, parseManifest } from "./lab-files.ts";
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
@@ -19,12 +19,12 @@ async function loadManifests(): Promise<LabManifest[]> {
 
   return Promise.all(
     files.map(async (file) => {
-      const raw = parse(await readFile(path.join(dir, file), "utf8"));
-      const result = LabManifest.safeParse(raw);
-      if (!result.success) {
-        throw new Error(`content/projects/${file}: ${result.error.message}`);
-      }
-      return result.data;
+      const result = parseManifest(
+        await readFile(path.join(dir, file), "utf8"),
+        path.basename(file, ".yaml"),
+      );
+      if (!result.ok) throw new Error(formatIssues(`content/projects/${file}`, result.issues));
+      return result.manifest;
     }),
   );
 }

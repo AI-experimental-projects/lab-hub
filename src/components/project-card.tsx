@@ -86,7 +86,7 @@ export function ProjectCard({ project, locale, t }: Props) {
 export function StateBadge({ state, t }: { state: Project["state"]; t: Dictionary }) {
   const s = STATE_STYLE[state];
   return (
-    <span className={`flex shrink-0 items-center gap-2 text-xs ${s.text}`}>
+    <span data-state={state} className={`flex shrink-0 items-center gap-2 text-xs ${s.text}`}>
       <span className={`size-2 rounded-full ${s.dot}`} aria-hidden />
       {t.state[state]}
     </span>

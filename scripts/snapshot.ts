@@ -29,7 +29,20 @@ function pageFile(pathname: string): string {
   return pathname === "/" ? "index.html" : `${pathname.slice(1)}.html`;
 }
 
-const STATIC_REF = /\/_next\/static\/[A-Za-z0-9._~\-/%@]+/g;
+// Right after a deploy, pages are still the build-time render (no collector data).
+// The first request triggers regeneration, so retry a few times before settling.
+async function getPage(pathname: string): Promise<string> {
+  let html = "";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    html = await (await get(pathname)).text();
+    if (!html.includes('data-state="unknown"')) return html;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  console.warn(`snapshot: ${pathname} still has projects without data`);
+  return html;
+}
+
+const STATIC_REF =/\/_next\/static\/[A-Za-z0-9._~\-/%@]+/g;
 
 async function main() {
   const status = (await (await get("/status")).json()) as { ok?: boolean };
@@ -49,7 +62,7 @@ async function main() {
   };
 
   for (const page of pages) {
-    const html = await (await get(page)).text();
+    const html = await getPage(page);
     add(pageFile(page), new TextEncoder().encode(html));
     for (const ref of html.matchAll(STATIC_REF)) assets.add(ref[0]);
   }

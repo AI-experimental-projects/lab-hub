@@ -14,11 +14,20 @@ internet ──▶ Cloudflare ──tunnel──▶ cloudflared (pod) ──▶ 
 
 Pide `sudo`. Instala el canal `stable` sin Traefik ni ServiceLB y deja el kubeconfig en `~/.kube/config`.
 
-## 2. Hola mundo
+Después, el firewall del host (bloquea la LAN, deja pasar las redes de k3s y Tailscale):
 
 ```bash
-kubectl apply -f infra/k8s/hello/
-kubectl -n lab-hub port-forward svc/hello 8080:80   # abrir http://localhost:8080
+./infra/host/firewall.sh
+```
+
+## 2. Lab Hub
+
+El CI publica una imagen por commit en `ghcr.io/ai-experimental-projects/lab-hub:sha-<commit>`. Para desplegar un commit, cambia el tag en `infra/k8s/lab-hub/web.yaml`, haz commit y aplica:
+
+```bash
+kubectl apply -f infra/k8s/lab-hub/
+kubectl -n lab-hub rollout status deploy/web
+kubectl -n lab-hub port-forward svc/web 8080:80   # abrir http://localhost:8080
 ```
 
 ## 3. Cloudflare Tunnel
@@ -33,7 +42,7 @@ kubectl -n lab-hub port-forward svc/hello 8080:80   # abrir http://localhost:808
    kubectl apply -f infra/k8s/cloudflared/
    ```
 
-3. En el tunnel, **Add route → Published application**: `lab.<tu-dominio>` → `http://hello.lab-hub.svc.cluster.local:80`. Cloudflare crea el CNAME solo.
+3. En el tunnel, **Add route → Published application**: `lab.<tu-dominio>` → `http://web.lab-hub.svc.cluster.local:80`. Cloudflare crea el CNAME solo.
 4. Verifica:
 
    ```bash

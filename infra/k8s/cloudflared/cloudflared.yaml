@@ -1,6 +1,6 @@
 # Remotely-managed Cloudflare Tunnel. Public hostnames are configured in the
 # Cloudflare dashboard and point at in-cluster services, e.g.
-#   lab.<domain>  ->  http://hello.lab-hub.svc.cluster.local:80
+#   lab.<domain>  ->  http://web.lab-hub.svc.cluster.local:80
 # The tunnel token lives in the `cloudflared-token` Secret (created by hand, never committed).
 apiVersion: v1
 kind: Namespace

@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lab Hub
 
-## Getting Started
+Portafolio vivo: un sitio en Next.js que muestra cada proyecto del lab funcionando en producción, con estado, uptime, versión y costo leídos en vivo.
 
-First, run the development server:
+> Estado: v0 en construcción (Fase 0). Las tarjetas usan datos de ejemplo hasta que llegue el collector.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Cómo funciona
+
+El Hub **jala** datos de los proyectos; los proyectos nunca le envían nada. Conectar un proyecto nuevo es solo agregar su `lab.yaml`.
+
+Cada proyecto publica un `lab.yaml`:
+
+```yaml
+name: EvalGate
+slug: evalgate
+phase: 1
+summary: Evals como gate de despliegue para agentes y políticas de robot
+repo: github.com/AI-experimental-projects/evalgate
+demo: https://evalgate.example.com
+status_url: https://evalgate.example.com/status
+metrics: [runs_24h, gate_blocks_7d, p95_latency_ms]
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Y expone `GET /status`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```json
+{
+  "ok": true,
+  "version": "0.3.1",
+  "uptime_30d": 0.997,
+  "metrics": { "runs_24h": 42, "gate_blocks_7d": 3, "p95_latency_ms": 840 },
+  "cost_month_usd": 4.2
+}
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ambos formatos se validan con zod en [src/lib/contract.ts](src/lib/contract.ts). Un campo fuera del contrato hace fallar el build.
 
-## Learn More
+## Desarrollo
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm install
+pnpm dev        # http://localhost:3000
+pnpm build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Infra
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Corre en k3s en un homelab, expuesto con Cloudflare Tunnel. Ver [infra/README.md](infra/README.md).
 
-## Deploy on Vercel
+## Licencia
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[MIT](LICENSE)

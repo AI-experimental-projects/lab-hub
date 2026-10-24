@@ -72,6 +72,17 @@ describe("handle", () => {
 });
 
 describe("injectNotice", () => {
+  it("strips scripts so React can't hydrate the notice away", () => {
+    const withScripts =
+      `<html lang="en"><head><link rel="preload" as="script" href="/_next/a.js"/><link rel="stylesheet" href="/a.css"/></head>` +
+      `<body><main>hub</main><script src="/_next/a.js" async=""></script><script>self.__next_f.push([1,"x"])</script></body></html>`;
+    const out = injectNotice(withScripts, SNAPSHOT_AT);
+    expect(out).not.toMatch(/<script/i);
+    expect(out).not.toContain('as="script"');
+    expect(out).toContain('rel="stylesheet"');
+    expect(out).toContain("<main>hub</main>");
+  });
+
   it("adds the notice right after <body> in the page's language", () => {
     expect(injectNotice(page("es"), SNAPSHOT_AT)).toMatch(/<body class="x"><div role="status"[^>]*>Copia del sitio de 2026-10-24 03:15 UTC/);
     expect(injectNotice(page("en"), SNAPSHOT_AT)).toContain(">Snapshot from");

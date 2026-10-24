@@ -64,7 +64,12 @@ export function injectNotice(html: string, snapshotAt: string): string {
   const notice =
     `<div role="status" style="background:#2a2417;color:#c9b07a;border-bottom:1px solid #3a3220;` +
     `padding:10px 16px;font:14px/1.4 system-ui,sans-serif;text-align:center">${text}</div>`;
-  return html.replace(/<body[^>]*>/, (body) => body + notice);
+  // Serve the snapshot as plain HTML: hydrating would let React drop the notice and
+  // the client router would keep calling the unreachable origin. Links still work.
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<link\b[^>]*\b(?:rel="(?:modulepreload|preload)"[^>]*as="script"|as="script"[^>]*rel="(?:modulepreload|preload)")[^>]*>/gi, "")
+    .replace(/<body[^>]*>/, (body) => body + notice);
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

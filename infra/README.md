@@ -1,91 +1,95 @@
-# Infra del homelab
+# Homelab infra
 
-k3s de un solo nodo, expuesto a internet con Cloudflare Tunnel. No se abre ningún puerto de la casa: `cloudflared` corre dentro del cluster y saca el tráfico hacia Cloudflare.
+Single-node k3s, exposed to the internet through Cloudflare Tunnel. No home ports are opened: `cloudflared` runs inside the cluster and sends traffic out to Cloudflare.
 
 ```
 internet ──▶ Cloudflare ──tunnel──▶ cloudflared (pod) ──▶ Service ──▶ pod
 ```
 
-## 1. Instalar k3s
+## 1. Install k3s
 
 ```bash
 ./infra/k3s/install.sh
 ```
 
-Pide `sudo`. Instala el canal `stable` sin Traefik ni ServiceLB y deja el kubeconfig en `~/.kube/config`.
+Needs `sudo`. Installs the `stable` channel without Traefik or ServiceLB and leaves the kubeconfig in `~/.kube/config`.
 
-Después, el firewall del host (bloquea la LAN, deja pasar las redes de k3s y Tailscale):
+Then the host firewall (blocks the LAN, allows k3s and Tailscale networks):
 
 ```bash
 ./infra/host/firewall.sh
 ```
 
-## 2. Namespaces y Flux (GitOps)
+## 2. Namespaces and Flux (GitOps)
 
-Los namespaces son objetos de todo el cluster y se aplican a mano. Todo lo demás lo despliega Flux desde `main`:
+Namespaces are cluster-wide objects and are applied by hand. Everything else is deployed by Flux from `main`:
 
 ```bash
 kubectl apply -f infra/k8s/cluster/
 kubectl apply -k infra/flux
 kubectl -n flux-system wait --for=condition=Available deploy --all --timeout=180s
 kubectl apply -f infra/flux/sync/
-flux get kustomizations          # lab-hub y cloudflared en Ready
+flux get kustomizations          # lab-hub and cloudflared Ready
 ```
 
-Flux despliega con la cuenta `deployer`, que solo tiene permisos dentro de `lab-hub` y `cloudflared`.
+Flux deploys as the `deployer` account, which only has permissions inside `lab-hub` and `cloudflared`.
 
-### Cómo se despliega una versión
+### How a release ships
 
 ```
-push a main ─▶ CI: validate, test, lint, build ─▶ imagen ghcr.io/…:sha-<commit>
-            ─▶ CI: commit "deploy: web sha-<commit>" en web.yaml
-            ─▶ Flux (dentro del cluster) ve el commit y hace el rollout
+push to main ─▶ CI: validate, test, lint, build ─▶ image ghcr.io/…:sha-<commit>
+             ─▶ CI: commit "deploy: web sha-<commit>" on web.yaml
+             ─▶ Flux (in the cluster) sees the commit and rolls out
 ```
 
-GitHub nunca se conecta al cluster: Flux lee el repo público. Después de cada push, `git pull --rebase` trae el commit de deploy del bot.
+GitHub never connects to the cluster: Flux reads the public repo. After each push, `git pull --rebase` brings in the bot's deploy commit.
 
-Para revertir: `git revert` del commit `deploy: …` (o de cualquier cambio en `infra/k8s/`) y push.
+To roll back: `git revert` the `deploy: …` commit (or any `infra/k8s/` change) and push.
 
-El bot hace push con una deploy key (SSH, solo este repo) guardada como secreto `DEPLOY_KEY` del entorno `production`, que solo `main` puede usar. Para crearla o rotarla:
+The bot pushes with a deploy key (SSH, this repo only) stored as the `DEPLOY_KEY` secret on the `production` environment, which only `main` can use. To create or rotate it:
 
 ```bash
-./infra/github/setup-deploy-key.sh            # borra antes la llave vieja en Settings → Deploy keys
+./infra/github/setup-deploy-key.sh            # delete the old key first under Settings → Deploy keys
 ```
 
 ## 3. Cloudflare Tunnel
 
-1. En el dashboard de Cloudflare: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Ponle de nombre `homelab` y copia **solo el token** (la parte `eyJ...` del comando que muestra, no el comando entero).
-2. Crea el Secret (el token nunca entra al repo):
+1. In the Cloudflare dashboard: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Name it `homelab` and copy **only the token** (the `eyJ...` part of the shown command, not the whole command).
+2. Create the Secret (the token never enters the repo):
 
    ```bash
    read -rsp "Token: " TOKEN && echo
    kubectl -n cloudflared create secret generic cloudflared-token --from-literal=token="$TOKEN" && unset TOKEN
    ```
 
-3. En el tunnel, **Add route → Published application**: `lab.<tu-dominio>` → `http://web.lab-hub.svc.cluster.local:80`. Cloudflare crea el CNAME solo.
-4. Verifica:
+3. On the tunnel, **Add route → Published application**: `lab.<your-domain>` → `http://web.lab-hub.svc.cluster.local:80`. Cloudflare creates the CNAME by itself.
+4. Verify:
 
    ```bash
    kubectl -n cloudflared get pods        # 2/2 Running
-   curl -I https://lab.<tu-dominio>       # 200
+   curl -I https://lab.<your-domain>      # 200
    ```
 
-## 4. Respaldo en el edge (Cloudflare Worker)
+## 4. Edge backup (Cloudflare Worker)
 
-`infra/edge/` es un Worker delante de `lab.beaiapp.com`: pasa cada petición al homelab y, si no responde (5xx o más de 8 s), sirve la última copia del sitio con un aviso. `/status` y `/healthz` responden 503 en ese caso, para que los monitores vean la caída.
+`infra/edge/` is a Worker in front of `lab.beaiapp.com`: it forwards every request to the homelab and, if that fails (5xx or more than 8 s), serves the last snapshot of the site with a notice. `/status` and `/healthz` answer 503 in that case so monitors see the outage.
 
-La copia la toma `scripts/snapshot.ts` (páginas del `sitemap.xml` y sus archivos estáticos). El workflow `edge.yml` la refresca cada 30 minutos y despliega el Worker; si el sitio está caído en ese momento, no sobrescribe la copia buena.
+The snapshot is taken by `scripts/snapshot.ts` (pages from `sitemap.xml` and their static assets). The `edge.yml` workflow refreshes it every 30 minutes and deploys the Worker; if the site is down at that moment, it does not overwrite the good snapshot.
 
-Configuración (una vez):
+One-time setup:
 
-1. **Token de Cloudflare.** En **My Profile → API Tokens → Create Token → Custom token**, con estos permisos:
+1. **Cloudflare API token.** Under **My Profile → API Tokens → Create Token → Custom token**, with these permissions:
    - Account · Workers Scripts · Edit
-   - Zone · Workers Routes · Edit, solo para la zona `beaiapp.com`
-2. **Guardarlo en GitHub** (entorno `production`, solo `main`):
+   - Zone · Workers Routes · Edit, only for the `beaiapp.com` zone
+2. **Store it in GitHub** (`production` environment, `main` only):
 
    ```bash
    gh secret set CLOUDFLARE_API_TOKEN --env production -R AI-experimental-projects/lab-hub
    gh variable set CLOUDFLARE_ACCOUNT_ID --env production -R AI-experimental-projects/lab-hub --body <account-id>
    ```
 
-3. Correr el workflow **Edge snapshot** a mano (Actions → Run workflow).
+3. Run the **Edge snapshot** workflow by hand (Actions → Run workflow).
+
+---
+
+[Spanish version](README.es.md)

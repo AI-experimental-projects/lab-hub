@@ -14,6 +14,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 
 | Capa | Control | Cómo se verifica |
 |---|---|---|
+| LAN → host | ufw: entrada denegada por defecto; solo se permiten las redes de k3s (10.42/16, 10.43/16) y `tailscale0`. Script: `infra/host/firewall.sh`. | `sudo ufw status verbose` |
 | Internet → casa | Sin puertos abiertos. Todo entra por Cloudflare Tunnel (conexión saliente). | `ss -ltn`, el router no tiene port forwarding |
 | Túnel | Solo los hostnames dados de alta en el dashboard. Catch-all `http_status:404`. WARP routing apagado. | Logs de `cloudflared`: `Updated to new configuration` |
 | Token del túnel | Vive solo en el Secret `cloudflared-token`. Nunca en el repo ni en el chat. | `git grep -E "eyJ[A-Za-z0-9_-]{100,}"` vacío |
@@ -22,7 +23,8 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 
 ## Pendiente
 
-- [ ] Revisar `sudo ufw status verbose`: la API de k3s (6443) y el kubelet (10250) escuchan en todas las interfaces de la LAN.
+- [x] Firewall del host activo (2026-10-23). 6443 y 10250 siguen escuchando, pero ya no son accesibles desde la LAN.
+- [ ] Probar desde otro equipo de la LAN que 6443 y 10250 no responden (`nc -zv 192.168.1.74 6443`).
 - [ ] Cloudflare: activar Bot Fight Mode y una regla de rate limiting para `lab.beaiapp.com`.
 - [ ] Rotar el token del túnel si alguna vez aparece en un log, captura o chat (**Tunnel → Refresh token → Rotate**).
 

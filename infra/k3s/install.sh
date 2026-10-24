@@ -16,5 +16,9 @@ sudo cp /etc/rancher/k3s/k3s.yaml "$HOME/.kube/config"
 sudo chown "$(id -u):$(id -g)" "$HOME/.kube/config"
 chmod 600 "$HOME/.kube/config"
 
+# k3s's bundled kubectl reads /etc/rancher/k3s/k3s.yaml unless KUBECONFIG is set.
+export KUBECONFIG="$HOME/.kube/config"
+grep -q 'KUBECONFIG=' "$HOME/.bashrc" || echo 'export KUBECONFIG="$HOME/.kube/config"' >> "$HOME/.bashrc"
+
 kubectl wait --for=condition=Ready node --all --timeout=120s
 kubectl get nodes -o wide

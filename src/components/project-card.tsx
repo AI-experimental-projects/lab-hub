@@ -19,12 +19,16 @@ export function formatMetric(value: number, locale: Locale) {
 }
 
 export function formatCheckedAt(ms: number, locale: Locale) {
-  return new Intl.DateTimeFormat(INTL[locale], {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  }).format(ms);
+  const deltaSec = Math.round((ms - Date.now()) / 1000);
+  const abs = Math.abs(deltaSec);
+  const rtf = new Intl.RelativeTimeFormat(INTL[locale], { numeric: "auto" });
+  if (abs < 60) return rtf.format(deltaSec, "second");
+  const deltaMin = Math.round(deltaSec / 60);
+  if (Math.abs(deltaMin) < 60) return rtf.format(deltaMin, "minute");
+  const deltaHour = Math.round(deltaSec / 3600);
+  if (Math.abs(deltaHour) < 24) return rtf.format(deltaHour, "hour");
+  const deltaDay = Math.round(deltaSec / 86400);
+  return rtf.format(deltaDay, "day");
 }
 
 type Props = { project: Project; locale: Locale; t: Dictionary };

@@ -23,16 +23,17 @@ kubectl -n lab-hub port-forward svc/hello 8080:80   # abrir http://localhost:808
 
 ## 3. Cloudflare Tunnel
 
-1. En el dashboard de Cloudflare: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Ponle de nombre `homelab` y copia el token.
+1. En el dashboard de Cloudflare: **Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared**. Ponle de nombre `homelab` y copia **solo el token** (la parte `eyJ...` del comando que muestra, no el comando entero).
 2. Crea el Secret (el token nunca entra al repo):
 
    ```bash
    kubectl create namespace cloudflared
-   kubectl -n cloudflared create secret generic cloudflared-token --from-literal=token='<TOKEN>'
+   read -rsp "Token: " TOKEN && echo
+   kubectl -n cloudflared create secret generic cloudflared-token --from-literal=token="$TOKEN" && unset TOKEN
    kubectl apply -f infra/k8s/cloudflared/
    ```
 
-3. En el tunnel, **Public Hostname → Add**: `lab.<tu-dominio>` → `HTTP` → `hello.lab-hub.svc.cluster.local:80`.
+3. En el tunnel, **Add route → Published application**: `lab.<tu-dominio>` → `http://hello.lab-hub.svc.cluster.local:80`. Cloudflare crea el CNAME solo.
 4. Verifica:
 
    ```bash

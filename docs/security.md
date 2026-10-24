@@ -16,7 +16,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 |---|---|---|
 | Internet → casa | Sin puertos abiertos. Todo entra por Cloudflare Tunnel (conexión saliente). | `ss -ltn`, el router no tiene port forwarding |
 | Túnel | Solo los hostnames dados de alta en el dashboard. Catch-all `http_status:404`. WARP routing apagado. | Logs de `cloudflared`: `Updated to new configuration` |
-| Token del túnel | Vive solo en el Secret `cloudflared-token`. Nunca en el repo ni en el chat. | `git grep eyJ` vacío |
+| Token del túnel | Vive solo en el Secret `cloudflared-token`. Nunca en el repo ni en el chat. | `git grep -E "eyJ[A-Za-z0-9_-]{100,}"` vacío |
 | Red del cluster | NetworkPolicies con todo denegado por defecto. `cloudflared` solo sale a DNS, al edge de Cloudflare (internet público, sin rangos privados) y a `lab-hub:8080`. | Prueba con un pod de prueba con la etiqueta `app=cloudflared` |
 | Pods | Pod Security `restricted`: sin root, sin capabilities, sin escalar privilegios, seccomp, raíz de solo lectura, sin token de service account. | `kubectl apply --dry-run=server` sin avisos |
 

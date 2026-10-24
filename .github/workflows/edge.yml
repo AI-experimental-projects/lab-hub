@@ -47,5 +47,5 @@ jobs:
             echo "::notice::Cloudflare token or account id not configured; skipping deploy"
             exit 0
           fi
-          pnpm install --ignore-workspace --frozen-lockfile
+          pnpm install --frozen-lockfile
           pnpm exec wrangler deploy --var "SNAPSHOT_AT:$(date -u +%Y-%m-%dT%H:%M:%SZ)"

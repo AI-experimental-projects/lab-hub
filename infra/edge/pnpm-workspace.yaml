@@ -1,0 +1,6 @@
+# Standalone package (not part of the root workspace).
+# Build scripts stay off: wrangler deploy only needs esbuild's prebuilt binary;
+# workerd is for local `wrangler dev`.
+allowBuilds:
+  esbuild: false
+  workerd: false

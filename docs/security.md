@@ -31,6 +31,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 - [x] Firewall del host activo (2026-10-23). 6443 y 10250 siguen escuchando, pero ya no son accesibles desde la LAN.
 - [x] Probado desde otra laptop de la LAN: `nc -zv 192.168.1.74 6443` da timeout (2026-10-23).
 - [x] GitHub (2026-10-23): ruleset `main-integrity` (nadie hace force push ni borra `main`) y `main-only-owner` (solo admins de la org y la deploy key del CI pueden hacer push a `main`).
+- [x] Prueba de caída (2026-10-24): con `web` en 0 réplicas, el sitio sirvió la copia con aviso, `/status` dio 503 y UptimeRobot mandó la alerta DOWN; el sitio volvió en ~14 s al reactivar Flux.
 - [ ] Cloudflare: activar Bot Fight Mode y una regla de rate limiting para `lab.beaiapp.com`.
 - [ ] Rotar el token del túnel si alguna vez aparece en un log, captura o chat (**Tunnel → Refresh token → Rotate**).
 

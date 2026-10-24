@@ -7,8 +7,9 @@ metadata:
   namespace: lab-hub
 spec:
   replicas: 1
+  # SQLite on a ReadWriteOnce volume: one writer at a time, so no overlap on rollout.
   strategy:
-    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+    type: Recreate
   selector:
     matchLabels: { app: web }
   template:
@@ -43,6 +44,8 @@ spec:
               mountPath: /app/.next/cache
             - name: tmp
               mountPath: /tmp
+            - name: data
+              mountPath: /data
           resources:
             requests: { cpu: 50m, memory: 128Mi }
             limits: { memory: 512Mi }
@@ -51,6 +54,22 @@ spec:
           emptyDir: { sizeLimit: 256Mi }
         - name: tmp
           emptyDir: { sizeLimit: 16Mi }
+        - name: data
+          persistentVolumeClaim:
+            claimName: web-data
+---
+# Collector history (SQLite). k3s local-path storage on the homelab disk.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: web-data
+  namespace: lab-hub
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
 ---
 apiVersion: v1
 kind: Service
@@ -63,8 +82,7 @@ spec:
     - port: 80
       targetPort: 8080
 ---
-# Only the tunnel connector may reach the web pods. No egress yet
-# (the week-4 collector will add a narrow allow list).
+# Only the tunnel connector may reach the web pods.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -82,3 +100,37 @@ spec:
             matchLabels: { app: cloudflared }
       ports:
         - { protocol: TCP, port: 8080 }
+---
+# The collector fetches /status URLs from lab.yaml files. Even if a URL slipped past
+# the contract and the DNS check, it could only reach the public internet over https:
+# never the LAN, Tailscale, the cluster or cloud metadata.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-egress-collector
+  namespace: lab-hub
+spec:
+  podSelector:
+    matchLabels: { app: web }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 100.64.0.0/10
+              - 169.254.0.0/16
+              - 127.0.0.0/8
+      ports:
+        - { protocol: TCP, port: 443 }

@@ -1,26 +1,32 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { type LabManifest, LabStatus } from "./contract.ts";
+import { cacheLife } from "next/cache";
+import type { LabManifest, LabStatus } from "./contract.ts";
+import { getDb } from "./db.ts";
 import { formatIssues, parseManifest } from "./lab-files.ts";
 
-const CONTENT_DIR = path.join(process.cwd(), "content");
+const PROJECTS_DIR = path.join(process.cwd(), "content", "projects");
+
+// A project counts as stale when the collector hasn't heard from it in this long.
+const STALE_AFTER_MS = 20 * 60 * 1000;
 
 export type Project = {
   manifest: LabManifest;
-  // null until the project answers /status (or has no status_url yet)
+  // Last valid /status the collector got (null if never).
   status: LabStatus | null;
-  // true while status comes from content/sample-status.json instead of the collector
-  sample: boolean;
+  // Measured by the Hub over 30 days, not self-reported (null without checks).
+  uptime: number | null;
+  lastCheckedAt: number | null;
+  state: "up" | "down" | "stale" | "unknown";
 };
 
-async function loadManifests(): Promise<LabManifest[]> {
-  const dir = path.join(CONTENT_DIR, "projects");
-  const files = (await readdir(dir)).filter((f) => f.endsWith(".yaml")).sort();
+export async function loadManifests(): Promise<LabManifest[]> {
+  const files = (await readdir(PROJECTS_DIR)).filter((f) => f.endsWith(".yaml")).sort();
 
   return Promise.all(
     files.map(async (file) => {
       const result = parseManifest(
-        await readFile(path.join(dir, file), "utf8"),
+        await readFile(path.join(PROJECTS_DIR, file), "utf8"),
         path.basename(file, ".yaml"),
       );
       if (!result.ok) throw new Error(formatIssues(`content/projects/${file}`, result.issues));
@@ -29,30 +35,26 @@ async function loadManifests(): Promise<LabManifest[]> {
   );
 }
 
-// Placeholder until the collector (week 4) writes real /status snapshots to SQLite.
-async function loadSampleStatus(): Promise<Record<string, LabStatus>> {
-  const raw = JSON.parse(
-    await readFile(path.join(CONTENT_DIR, "sample-status.json"), "utf8"),
-  );
-  const entries = Object.entries(raw).map(([slug, value]) => {
-    const result = LabStatus.safeParse(value);
-    if (!result.success) {
-      throw new Error(`content/sample-status.json [${slug}]: ${result.error.message}`);
-    }
-    return [slug, result.data] as const;
-  });
-  return Object.fromEntries(entries);
-}
-
 export async function getProjects(): Promise<Project[]> {
   "use cache";
-  const [manifests, sample] = await Promise.all([loadManifests(), loadSampleStatus()]);
+  cacheLife("minutes");
+
+  const db = getDb();
+  const now = Date.now();
+  const manifests = await loadManifests();
 
   return manifests
-    .map((manifest) => ({
-      manifest,
-      status: sample[manifest.slug] ?? null,
-      sample: manifest.slug in sample,
-    }))
+    .map((manifest): Project => {
+      const { last, lastValid } = db.latest(manifest.slug);
+      let state: Project["state"] = "unknown";
+      if (last) state = now - last.checkedAt > STALE_AFTER_MS ? "stale" : last.ok ? "up" : "down";
+      return {
+        manifest,
+        status: lastValid?.status ?? null,
+        uptime: db.uptime(manifest.slug, now),
+        lastCheckedAt: last?.checkedAt ?? null,
+        state,
+      };
+    })
     .sort((a, b) => a.manifest.phase - b.manifest.phase || a.manifest.name.localeCompare(b.manifest.name));
 }

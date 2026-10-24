@@ -3,6 +3,7 @@ import type { Project } from "@/lib/projects";
 const STATE = {
   up: { label: "En línea", dot: "bg-ok", text: "text-ok" },
   down: { label: "Con fallas", dot: "bg-down", text: "text-down" },
+  stale: { label: "Sin datos recientes", dot: "bg-warn", text: "text-warn" },
   unknown: { label: "Sin datos", dot: "bg-muted", text: "text-muted" },
 } as const;
 
@@ -14,15 +15,32 @@ function formatMetric(value: number) {
   return new Intl.NumberFormat("es-MX", { maximumFractionDigits: 1 }).format(value);
 }
 
+function formatCheckedAt(ms: number) {
+  return new Intl.DateTimeFormat("es-MX", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+    timeZoneName: "short",
+  }).format(ms);
+}
+
 export function ProjectCard({ project }: { project: Project }) {
-  const { manifest, status, sample } = project;
-  const state = STATE[status === null ? "unknown" : status.ok ? "up" : "down"];
+  const { manifest, status, uptime, lastCheckedAt } = project;
+  const state = STATE[project.state];
 
   return (
     <article className="flex flex-col gap-5 rounded-lg border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-medium text-fg-strong">{manifest.name}</h2>
+          <h2 className="truncate text-base font-medium text-fg-strong">
+            {manifest.demo ? (
+              <a href={manifest.demo} className="hover:text-accent">
+                {manifest.name}
+              </a>
+            ) : (
+              manifest.name
+            )}
+          </h2>
           <p className="mt-1 text-sm text-muted">{manifest.summary}</p>
         </div>
         <span className={`flex shrink-0 items-center gap-2 text-xs ${state.text}`}>
@@ -32,8 +50,8 @@ export function ProjectCard({ project }: { project: Project }) {
       </div>
 
       <dl className="grid grid-cols-3 gap-3 border-t border-line pt-4 font-mono text-sm">
-        <Stat label="versión" value={status ? `v${status.version}` : "—"} />
-        <Stat label="uptime 30d" value={status ? formatUptime(status.uptime_30d) : "—"} />
+        <Stat label="versión" value={status ? status.version.slice(0, 12) : "—"} />
+        <Stat label="uptime 30d" value={uptime !== null ? formatUptime(uptime) : "—"} />
         <Stat label="costo/mes" value={status ? `$${status.cost_month_usd.toFixed(2)}` : "—"} />
       </dl>
 
@@ -49,9 +67,14 @@ export function ProjectCard({ project }: { project: Project }) {
         </dl>
       )}
 
-      <footer className="mt-auto flex items-center justify-between text-xs text-muted">
+      <footer className="mt-auto flex items-center justify-between gap-3 text-xs text-muted">
         <span>Fase {manifest.phase}</span>
-        {sample && <span className="rounded bg-surface-2 px-2 py-0.5">datos de ejemplo</span>}
+        <span className="flex items-center gap-3">
+          {lastCheckedAt !== null && <span>revisado {formatCheckedAt(lastCheckedAt)}</span>}
+          <a href={`https://${manifest.repo}`} className="hover:text-fg-strong">
+            repo
+          </a>
+        </span>
       </footer>
     </article>
   );

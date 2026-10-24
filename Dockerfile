@@ -17,10 +17,14 @@ RUN pnpm build
 # Runtime: only the standalone server, static assets and content. Runs as non-root.
 FROM node:24-alpine AS runtime
 WORKDIR /app
+# Commit the image was built from; reported by /status.
+ARG LAB_VERSION=dev
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=8080 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    LAB_VERSION=$LAB_VERSION \
+    LAB_DB_PATH=/data/lab.db
 
 COPY --from=build --chown=1001:1001 /app/.next/standalone ./
 COPY --from=build --chown=1001:1001 /app/.next/static ./.next/static

@@ -21,6 +21,7 @@ El homelab es una máquina de la casa con acceso a la LAN, a Tailscale y a servi
 | Red del cluster | NetworkPolicies con todo denegado por defecto. `cloudflared` solo sale a DNS, al edge de Cloudflare (internet público, sin rangos privados) y a `lab-hub:8080`. | Prueba con un pod de prueba con la etiqueta `app=cloudflared` |
 | Repo | `main` protegido por rulesets. El CI hace push con una deploy key de un solo repo, guardada en el entorno `production` (solo `main`). Los PRs y forks no la ven. | `gh api repos/AI-experimental-projects/lab-hub/rulesets` |
 | Despliegue (GitOps) | Flux lee el repo público; GitHub no tiene acceso al cluster. Flux despliega como `deployer`, con rol `admin` solo en `lab-hub` y `cloudflared`: no puede tocar `kube-system`, namespaces ni recursos de todo el cluster. `targetNamespace` fuerza el namespace de cada manifiesto. | `kubectl auth can-i --as=system:serviceaccount:flux-system:deployer create pods -n kube-system` → `no` |
+| Collector (SSRF) | Contrato `https` + dominio público → DNS resuelto y revisado contra rangos privados, socket fijado a la IP revisada, sin redirecciones, timeout de 5 s y 64 KB máximo → NetworkPolicy: `web` solo sale a DNS y a 443 público. | `pnpm test` (`safe-fetch.test.ts`) |
 | Pods | Pod Security `restricted`: sin root, sin capabilities, sin escalar privilegios, seccomp, raíz de solo lectura, sin token de service account. | `kubectl apply --dry-run=server` sin avisos |
 
 ## Pendiente
@@ -48,7 +49,7 @@ Riesgos que ya se ven venir en fases siguientes:
 | Fase | Riesgo | Mitigación planeada |
 |---|---|---|
 | 0 · sem. 3 | Quien pueda hacer push a `main` despliega en el cluster. | Flux limitado a 2 namespaces; ruleset en `main`; los PRs de forks no tienen permisos de escritura. |
-| 0 · sem. 4 | El collector hace peticiones a las URLs de `lab.yaml` (SSRF): un `status_url` malicioso podría apuntar a la LAN. | Hecho en sem. 3: el contrato solo acepta `https` a dominios públicos (sin IPs, nombres internos, credenciales ni puertos). Falta: resolver DNS y rechazar IPs privadas al hacer la petición, y NetworkPolicy sin rangos privados. |
+| 0 · sem. 4 | El collector hace peticiones a las URLs de `lab.yaml` (SSRF): un `status_url` malicioso podría apuntar a la LAN. | Hecho: tres capas (contrato, `safe-fetch` con DNS revisado y socket fijado, NetworkPolicy de salida solo a HTTPS público). Con tests. |
 | 0 · sem. 8 | El Hub como plantilla pública recibe PRs de terceros. | El CI de PRs externos no tiene acceso a secretos; revisión manual de `lab.yaml`. |
 | 1 · EvalGate | La GitHub Action corre código de PRs y usa API keys de LLMs. | `pull_request` (no `pull_request_target`), keys con presupuesto limitado, sin secretos para forks. |
 | 2 · Sim2Sim | Jobs de GPU en AWS. | Presupuesto con alerta y apagado automático; IAM con mínimo privilegio. |

@@ -1,0 +1,84 @@
+# The Lab Hub web app. Image is built by CI and published to GHCR;
+# deploy a specific commit by changing the sha- tag.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: lab-hub
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: web }
+  template:
+    metadata:
+      labels: { app: web }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: web
+          image: ghcr.io/ai-experimental-projects/lab-hub:main
+          ports:
+            - containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: next-cache
+              mountPath: /app/.next/cache
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+      volumes:
+        - name: next-cache
+          emptyDir: { sizeLimit: 256Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: lab-hub
+spec:
+  selector: { app: web }
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+# Only the tunnel connector may reach the web pods. No egress yet
+# (the week-4 collector will add a narrow allow list).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web-allow-from-cloudflared
+  namespace: lab-hub
+spec:
+  podSelector:
+    matchLabels: { app: web }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: cloudflared }
+          podSelector:
+            matchLabels: { app: cloudflared }
+      ports:
+        - { protocol: TCP, port: 8080 }
